@@ -1,0 +1,81 @@
+.menu_container {
+    display: flex;
+    width: 500px;
+    height: 300px;
+    margin: 10px 2.5%;
+    border: black solid 2px;
+    overflow-x: auto;
+}
+
+.inner_boxes {
+    width: 200px;
+    margin: 10px;
+    border: black solid 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.types_dropdown {
+    width: 200px;
+}
+
+.dropdown_label {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.school_list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+ul {
+    padding: 0;
+    margin: 0;
+    clear: both;
+}
+
+li {
+    list-style-type: none;
+    list-style-position: outside;
+    padding: 10px;
+    float: left;
+}
+
+input[type="checkbox"]:not(:checked),
+input[type="checkbox"]:checked {
+    position: absolute;
+    left: -9999%;
+}
+
+input[type="checkbox"]+label {
+    display: inline-block;
+    padding: 10px;
+    cursor: pointer;
+    border: 1px solid black;
+    color: black;
+    background-color: white;
+    margin-bottom: 10px;
+}
+
+input[type="checkbox"]:checked+label {
+    border: 1px solid white;
+    color: white;
+    background-color: black;
+}
+
+.map_container {
+    border: solid black 2px;
+    width: 280px;
+    height: 300px;
+    margin: 10px 2.5%;
+
+}
+
+#full_viz_holder {
+    display: flex;
+}
