@@ -1,6 +1,6 @@
 fileNamePath = "simplifiedSchools.csv"
-pathwayValueNames = ["High School", "Charter", "CTE", "Community College", "University/Colleges", "Graduate"]
-pathwayValueRanks = [1, 1, 2, 3, 4, 5]
+pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate"]
+pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7]
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
 
