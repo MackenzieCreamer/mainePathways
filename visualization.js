@@ -75,6 +75,7 @@ function create_school_list(type, indexOfElement) {
     schoolListElement.setAttribute('class', "school_list")
 
     d3.csv(fileNamePath).then(function (schools) {
+        console.log(schools)
         school_list = schools.filter(school => school.type === type)
         schoolCount = 0
         for (const school of school_list) {
