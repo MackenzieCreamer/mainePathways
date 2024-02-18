@@ -212,7 +212,6 @@ function create_map() {
                     // console.log(finalLinksBetween)
                 }
                 let schoolList = firstSchoolList.concat(finalSchoolList)
-                console.log(linksBetween)
 
 
 
