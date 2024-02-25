@@ -2,12 +2,12 @@
 <html>
 
 <head>
-    <script src="https://d3js.org/d3.v6.js"></script>
-    <script src="visualization.js"></script>
+    <script type="text/javascript" src="d3.v7.min.js"></script>
+    <script type="text/javascript" src="topojson.v1.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 
-<body onload="initialize();">
+<body>
     <div id="full_viz_holder">
         <div class="menu_container" id="all_menus"></div>
         <div class="map_container" id="map_box"></div>
@@ -26,7 +26,14 @@
       <option value="Africana">Africana</option>
       <option value="American Studies">American Studies</option>
     </select> 
+    <div class="zoomButtonContainer" id="zoomContainer">
+        <button class="zoomButton" id="zoom_in">+</button>
+        <button class="zoomButton zoomDisabled" id="zoom_out">-</button>
+    </div>
 </body>
+
+<script src="visualization.js"></script>
+
 
 </html>
 <!-- Calculus AB,Computer Science A,English Language and Composition,Statistics -->

@@ -1,8 +1,92 @@
 fileNamePath = "simplifiedSchools.csv"
+programsNamePath = "possiblePrograms.csv"
 pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate"]
 pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7]
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
+
+var boundaryComplex, boundarySimple, states;
+var landComplex, landSimple;
+var lakeComplex, lakeSimple;
+var riverComplex, riverSimple;
+
+var width = 280; var height = 300;
+
+const sensitivity = 75;
+let scale = 0.75;
+var draw_on_move=1;
+
+var dx = width, 
+	dy = height;
+
+var sourceData="",
+	target="",
+	targetData="";
+
+var base_r=0;
+var base_g=95;
+var base_b=153;
+var layer_transp=255;
+
+var radius = 4
+
+//Dozens of rgba colors for use in different areas of the website
+//First part is element of map effected, second is either fill = f, stroke = s, l = line, d = dot
+//third is element type, where width is width and clr = color
+var land_f2_clr="rgba(192,166,139,1)";
+var land_f_clr0="rgba(255,255,255,0)";
+//var land_f_clr="rgba(234,226,200,1)";
+var land_f_clr="rgba(192,166,139,1)";
+var borders_l_width=1;
+var borders_s_clr="rgba(0,0,0,.5)";
+var grid_l_width=.5;
+var grid_s_clr="rgba(128,128,128,.7)";
+var equator_s_clr="rgba(0,0,0,.4)";
+var wtr_f_clr="rgba(" + base_r.toString()+","+base_g.toString()+","+base_b.toString()+","+layer_transp.toString()+")";
+//var mrk_f_clr="rgba(70,130,180,1)";
+var mrk_f_clr="rgba(255,64,0,1)";
+var slc_f_clr="rgba(50,50,50,.3)";
+var slc_d_clr="rgba(50,50,50,.6)";
+
+var ocean_color="#7FB4D7";		// Natural Earth blue
+
+
+const center = [width / 2, height / 2];
+
+var svg = d3.select("#map_box")
+    .append("canvas")
+    .attr("width", width)
+    .attr("height", height)
+    .on("click",function(event){
+        latLonUpdate(projection.invert(d3.pointer(event)))
+    })
+
+function latLonUpdate(coordinates){
+    //Triggers from the mousemove event listener
+    //Updates the lat/lon coords in the top right of the canvas container
+    console.log(coordinates)
+}
+    
+
+var context=svg.node().getContext("2d");
+
+var image=new Image;
+
+var projection  = d3.geoEquirectangular()
+    .scale(1000) //361 was the ideal scale that gave all latitudes visibility on selection equirectangular projections
+    .translate([width / 2, height / 2]);
+
+var path = d3.geoPath()
+	.projection(projection)
+	.context(context);
+
+const initialScale = projection.scale();
+
+
+projection.scale(initialScale * scale);
+var maineCenter = projection([45.367584,-68.972168])
+projection.translate(maineCenter);
+
 
 
 function create_menu(indexOfElement, startingCutoff) {
@@ -38,9 +122,32 @@ function create_menu(indexOfElement, startingCutoff) {
     currentElement.appendChild(typeLabel).appendChild(schoolTypeSelect);
     schoolTypeSelect.value = ""
 
-
-
     schoolTypeSelect.onchange = function () {
+        d3.csv(programsNamePath).then(function (programs) {
+            console.log(programs)
+            let program_list = programs.filter(program => program.types === schoolTypeSelect.value)
+            program_list = program_list[0].programs.replace(/['"]+/g, '').replace(/[-]+/g, ' ')
+            console.log(program_list)
+            program_list = JSON.parse(program_list[0].programs)
+
+    
+            let filter1 = document.createElement("select");
+            filter1.name = "programFilter1"
+            filter1.id = "filter1_" + indexOfElement
+            filter1.setAttribute("class", "types_dropdown")
+            let filter2 = document.createElement("select");
+            filter2.name = "programFilter2"
+            filter2.id = "filter2_" + indexOfElement
+            filter2.setAttribute("class", "types_dropdown")
+            for (const program of programFilters) {
+                var programOption = document.createElement("option");
+                programOption.value = type;
+                programOption.text = type;
+                filter1.appendChild(programOption);
+                filter2.appendChild(programOption);
+            }
+        });
+
         pathwayNameIndex = pathwayValues[0].indexOf(schoolTypeSelect.value)
 
         valueRank = pathwayValues[1][pathwayNameIndex]
@@ -75,8 +182,10 @@ function create_school_list(type, indexOfElement) {
     schoolListElement.setAttribute('class', "school_list")
 
     d3.csv(fileNamePath).then(function (schools) {
-        let school_list = schools.filter(school => school.type === type && school.program.includes(document.getElementById("filter_1").value))
-        console.log(school_list)
+        // let school_list = schools.filter(school => school.type === type && school.program.includes(document.getElementById("filter_1").value))
+        let school_list = schools.filter(school => school.type === type)
+
+        // console.log(school_list)
         schoolCount = 0
         for (const school of school_list) {
             listElement = document.createElement("li")
@@ -138,14 +247,11 @@ function create_map() {
         // projection.translate([100, 0])
         // projection.scale(5)
 
-        path = d3.geoPath().projection(projection)
+        // path = d3.geoPath().projection(projection)
 
-
-
-
-        const svg = d3.select("#map_box").append('svg')
-            .attr('width', mapWidth)
-            .attr('height', mapHeight);
+        // const svg = d3.select("#map_box").append('svg')
+        //     .attr('width', mapWidth)
+        //     .attr('height', mapHeight);
 
         // draw one svg path per zip code
         svg.append("path")
@@ -271,5 +377,94 @@ function getIndex(type) {
 
 function initialize() {
     create_menu(0, 0)
-    create_map()
+    // create_map()
+    loadSimpleBoundaries();
 }
+
+function drawSimple(){
+	//Simple jsons for the draw tool, plus the various world states and provinces within countries
+	context.beginPath();
+	path(landSimple);
+    context.fillStyle=land_f_clr;
+    context.fill();
+	
+	context.beginPath();
+	path(boundarySimple);
+	context.lineWidth=borders_l_width;
+	context.strokeStyle=borders_s_clr;
+	context.stroke();
+
+
+	context.beginPath();
+	path(states);
+	context.lineWidth=borders_l_width;
+	context.strokeStyle=borders_s_clr;
+	context.stroke();
+}
+
+function loadSimpleBoundaries() {
+	d3.json("world-110m.json").then(function (world) {
+		boundarySimple = topojson.mesh(world, world.objects.countries);
+		landSimple = topojson.feature(world, world.objects.land);
+        console.log(landSimple);
+        render_image();
+	});
+    d3.json("states_50m.json").then(function (world) {
+		states = topojson.mesh(world, world.objects.ne_50m_admin_1_states_provinces,function(a,b){return a!==b});
+	});
+}
+
+function reproject_image(){
+    for (var y = 0, i = -1; y < dy; ++y) {
+		for (var x = 0; x < dx; ++x) {
+            targetData[++i] = base_r;
+            targetData[++i] = base_g;
+            targetData[++i] = base_b;	
+            targetData[++i] = layer_transp;
+        }
+    }
+}
+
+function render_image() {
+	//PRE:  Receives a boolean indicating either false (for simple) or true (for complex)
+	//POST: Draws canvas with source image, then draws gridlines after it's been projected through the reproject_image function
+	context.drawImage(image, 0, 0, width, height);
+	
+	//Sourceimage data
+	sourceData=context.getImageData(0, 0, dx, dy).data,
+		target=context.createImageData(dx, dy),			//target image data created from nothing (starts blank)
+		targetData=target.data;
+	
+	//Simplified projection (displayType == 2 or simple) must be drawn simply
+    reproject_image();
+
+	//--- Redraw image data ------------------------
+	context.putImageData(target, 0, 0);
+	
+	//--- Redraw map lines -------------------------
+	drawSimple();
+}
+
+
+d3.select("#zoom_in").on("click", function () {
+	if (scale < 0.75 * Math.pow(2, 6)) {
+		scale *= 2;
+		projection.scale(initialScale * scale);
+        maineCenter = projection([-68.972168,45.367584]);
+        console.log(maineCenter)
+        projection.translate([center[0]+maineCenter[0],center[1]+maineCenter[1]/2]);
+		render_image();
+	}
+});
+d3.select("#zoom_out").on("click", function () {
+	if (scale > 0.75 * Math.pow(2, -2)) {
+		scale /= 2;
+        projection.scale(initialScale * scale);
+        maineCenter = projection([-68.972168,45.367584]);
+        console.log(maineCenter)
+        projection.translate([center[0]+maineCenter[0],center[1]+maineCenter[1]/2]);
+		render_image();
+	}
+});
+
+initialize();
