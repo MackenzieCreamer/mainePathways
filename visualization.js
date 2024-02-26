@@ -170,6 +170,9 @@ function create_school_list(type, indexOfElement) {
             create_map(lastBehavior)
             hovering = 0
         }
+        listElement.onclick = function(){
+            create_map(0)
+        }
         schoolCount += 1
         schoolListElement.appendChild(listElement)
     }
