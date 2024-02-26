@@ -10,8 +10,13 @@ var schools, possiblePrograms;
 
 d3.json("counties-10m.json").then(function (us) {
     states = topojson.feature(us, us.objects.states, (a, b) => a !== b)
-    counties = topojson.mesh(us, us.objects.counties, (a, b) => a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0))
+    counties = topojson.feature(us, us.objects.counties, (a, b) => a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0))
     nation = topojson.feature(us, us.objects.nation);
+    counties = new Object({type:"FeatureCollection",features:counties.features.filter(d => d.id.slice(0, 2) === "23")})
+});
+
+d3.json("world-50m.json").then(function (world) {
+    landSimple = topojson.feature(world, world.objects.land)
 });
 
 d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
@@ -21,6 +26,7 @@ d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
 d3.csv("possiblePrograms.csv").then(function (programs) {
     possiblePrograms = programs;
 });
+
 
 
 
@@ -131,128 +137,135 @@ function visualizePath() {
 
 function create_map() {
     document.getElementById("map_box").innerHTML = ""
-    // projection = d3.geoAlbersUsa()
-    //     .scale(2000)
-    //     .translate([487.5, 305])
     projection = d3.geoTransverseMercator()
         .translate(center)
-        .rotate([69.162796, -45.2])
+        .rotate([69.14, -45.2])
         .scale(3800)
-    // path = d3.geoPath().projection(projection)
     path = d3.geoPath().projection(projection)
 
 
 
     const svg = d3.select("#map_box").append('svg')
         .attr('width', width)
-        .attr('height', height);
+        .attr('height', height)
+    
+    svg.append("rect")
+        .attr("width","100%")
+        .attr("height","100%")
+        .attr("fill","rgba(0,95,153,255)");
 
-    // draw one svg path per zip code
     svg.append("path")
-        .attr("d", path(states))
-        .attr("fill", '#d3d3d3')
-        .attr("stroke", "white")
+        .attr("d",path(landSimple))
+        .attr("fill", 'rgba(192,166,139,1)')
+        .attr("stroke", "gray")
         .attr("stroke-width", '1px')
 
-        const schoolsToVisualize = []
-        for (let i = 0; i < totalMenus - 1; i++) {
-            var schoolListElement = document.getElementById("school_list_" + i);
-            var checkboxes = schoolListElement.querySelectorAll('input[type="checkbox"]:checked');
-            schoolNames = []
-            let schoolType = null
-            for (const checkbox of checkboxes) {
-                returnValue = checkbox.value.split("$")
-                schoolNames.push(returnValue[0])
-                schoolType = returnValue[1]
-            }
-            elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
-            schoolsToVisualize.push(elementsSchools)
+    svg.append("path")
+        .attr("d", path(states))
+        .attr("fill", 'rgba(192,166,139,1)')
+        .attr("stroke", "gray")
+        .attr("stroke-width", '1px')
+
+        
+    // draw one svg path per zip code
+    svg.append("path")
+        .attr("d", path(counties))
+        .attr("fill", 'rgba(192,166,139,1)')
+        .attr("stroke", "gray")
+        .attr("stroke-width", '.5px')
+
+    const schoolsToVisualize = []
+    for (let i = 0; i < totalMenus - 1; i++) {
+        var schoolListElement = document.getElementById("school_list_" + i);
+        var checkboxes = schoolListElement.querySelectorAll('input[type="checkbox"]:checked');
+        schoolNames = []
+        let schoolType = null
+        for (const checkbox of checkboxes) {
+            returnValue = checkbox.value.split("$")
+            schoolNames.push(returnValue[0])
+            schoolType = returnValue[1]
         }
+        elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
+        schoolsToVisualize.push(elementsSchools)
+    }
 
-        ordinalColor = d3.scaleOrdinal()
-            .domain(pathwayValueNames)
-            .range(d3.schemeCategory10)
+    ordinalColor = d3.scaleOrdinal()
+        .domain(pathwayValueNames)
+        .range(d3.schemeCategory10)
 
-        const institutions = svg.append('g');
-        // schoolType.selectAll('circle')
-        //     .data(schoolsToVisualize)
+    const institutions = svg.append('g');
+
+    if (schoolsToVisualize[0] != undefined) {
+        let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
+        finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
+        firstSchoolList = d3.merge(firstSchoolList)
+        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+
+        let linksBetween = []
+
+        for (let i = 0; i < firstSchoolList.length - 1; i++) {
+            linksBetween.push([firstSchoolList[i].type,
+            { lat: firstSchoolList[i].lonlat[1], lon: firstSchoolList[i].lonlat[0] },
+            { lat: firstSchoolList[i + 1].lonlat[1], lon: firstSchoolList[i + 1].lonlat[0] }
+            ])
+        };
+
+        let finalFirstSchool = firstSchoolList[firstSchoolList.length - 1]
+
+        // let schoolLinks = d3.cross(, finalSchoolList)
+        if (finalFirstSchool != undefined) {
+            let finalFirstSchoolLatLon = ({ lat: finalFirstSchool.lonlat[1], lon: finalFirstSchool.lonlat[0] })
+            finalSchoolsLatLon = finalSchoolList.map(d => ({ lat: d.lonlat[1], lon: d.lonlat[0] }))
+            let finalLinksBetween = finalSchoolsLatLon.map(d => [finalFirstSchool.type, finalFirstSchoolLatLon, d])
+
+            linksBetween = linksBetween.concat(finalLinksBetween)
+            // console.log(linksBetween)
+            // console.log(finalLinksBetween)
+        }
+        let schoolList = firstSchoolList.concat(finalSchoolList)
+
+
+
+        // schools = institutions.selectAll('g')
+        //     .data(firstSchoolList)
+        //     .join('g')
+        subsetInstitutions = svg.append("g")
+        pathwaysInstitutions = svg.append('g')
+
+        subsetInstitutions.selectAll('circle')
+            // row.circles contains the array circles for the row
+            .data(schoolList)
+            .join('circle')
+            .attr('fill', d => ordinalColor(d.type))
+            .attr('cx', d => d.lonlat[0])
+            .attr('cy', d => d.lonlat[1])
+            // .attr('r', d => 10 - getIndex(d.type))
+            .attr('r', 3)
+
+        pathwaysInstitutions.selectAll('line')
+            .data(linksBetween)
+            .join('line')
+            .attr('x1', d => d[1].lon)
+            .attr('y1', d => d[1].lat)
+            .attr('x2', d => d[2].lon)
+            .attr('y2', d => d[2].lat)
+            .attr("stroke", d => ordinalColor(d[0]))
+            .attr("stroke-width", 2)
+
+
+
+
+        // institutions.selectAll('circle')
+        //     // row.circles contains the array circles for the row
+        //     .data(finalSchoolList)
         //     .join('circle')
-        // .attr('fill', d => console.log(i), ordinalColor(d[0].type))
-        // .attr('cx', d => projection[d.lon, d.lat][0])
-        // .attr('cy', d => projection[d.lon, d.lat][1])
-        // .attr('r', 10);
-
-        if (schoolsToVisualize[0] != undefined) {
-            let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
-            finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
-            firstSchoolList = d3.merge(firstSchoolList)
-            firstSchoolList = firstSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-            finalSchoolList = finalSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-
-            let linksBetween = []
-
-            for (let i = 0; i < firstSchoolList.length - 1; i++) {
-                linksBetween.push([firstSchoolList[i].type,
-                { lat: firstSchoolList[i].lonlat[1], lon: firstSchoolList[i].lonlat[0] },
-                { lat: firstSchoolList[i + 1].lonlat[1], lon: firstSchoolList[i + 1].lonlat[0] }
-                ])
-            };
-
-            let finalFirstSchool = firstSchoolList[firstSchoolList.length - 1]
-
-            // let schoolLinks = d3.cross(, finalSchoolList)
-            if (finalFirstSchool != undefined) {
-                let finalFirstSchoolLatLon = ({ lat: finalFirstSchool.lonlat[1], lon: finalFirstSchool.lonlat[0] })
-                finalSchoolsLatLon = finalSchoolList.map(d => ({ lat: d.lonlat[1], lon: d.lonlat[0] }))
-                let finalLinksBetween = finalSchoolsLatLon.map(d => [finalFirstSchool.type, finalFirstSchoolLatLon, d])
-
-                linksBetween = linksBetween.concat(finalLinksBetween)
-                // console.log(linksBetween)
-                // console.log(finalLinksBetween)
-            }
-            let schoolList = firstSchoolList.concat(finalSchoolList)
-
-
-
-            // schools = institutions.selectAll('g')
-            //     .data(firstSchoolList)
-            //     .join('g')
-            subsetInstitutions = svg.append("g")
-            pathwaysInstitutions = svg.append('g')
-
-            subsetInstitutions.selectAll('circle')
-                // row.circles contains the array circles for the row
-                .data(schoolList)
-                .join('circle')
-                .attr('fill', d => ordinalColor(d.type))
-                .attr('cx', d => d.lonlat[0])
-                .attr('cy', d => d.lonlat[1])
-                // .attr('r', d => 10 - getIndex(d.type))
-                .attr('r', 3)
-
-            pathwaysInstitutions.selectAll('line')
-                .data(linksBetween)
-                .join('line')
-                .attr('x1', d => d[1].lon)
-                .attr('y1', d => d[1].lat)
-                .attr('x2', d => d[2].lon)
-                .attr('y2', d => d[2].lat)
-                .attr("stroke", d => ordinalColor(d[0]))
-                .attr("stroke-width", 2)
-
-
-
-
-            // institutions.selectAll('circle')
-            //     // row.circles contains the array circles for the row
-            //     .data(finalSchoolList)
-            //     .join('circle')
-            //     .attr('fill', d => ordinalColor(d.type))
-            //     .attr('cx', d => projection([d.lon, d.lat])[0])
-            //     .attr('cy', d => projection([d.lon, d.lat])[1])
-            //     // .attr('r', d => 10 - getIndex(d.type))
-            //     .attr('r', 3)
-        }
+        //     .attr('fill', d => ordinalColor(d.type))
+        //     .attr('cx', d => projection([d.lon, d.lat])[0])
+        //     .attr('cy', d => projection([d.lon, d.lat])[1])
+        //     // .attr('r', d => 10 - getIndex(d.type))
+        //     .attr('r', 3)
+    }
 }
 
 function getIndex(type) {
