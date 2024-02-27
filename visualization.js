@@ -1,5 +1,5 @@
-pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate"]
-pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7]
+pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
+pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7,8]
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
 var width,height;
@@ -86,6 +86,8 @@ function create_menu(indexOfElement, startingCutoff) {
         delete_old_menus(nextElement)
 
         create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
+
+        create_map()
     }
 }
 
@@ -109,7 +111,7 @@ function create_school_list(type, indexOfElement) {
     schoolListElement.setAttribute('class', "school_list")
     
     
-    if(type == pathwayValues[0][0] || type == pathwayValues[0][1]){
+    if(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7]){
         school_list = schools.filter(school => school.type === type)
     } else {
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
@@ -142,7 +144,13 @@ function create_school_list(type, indexOfElement) {
         listElement.appendChild(schoolOption)
         listElement.appendChild(schoolLabel)
         listElement.onmouseover = function(){
+            
+            listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]:checked')
+            listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
+            childID = this.firstChild.id
+            
             if(hovering == 0){
+
                 let [schoolName,schoolType] = this.firstChild.value.split("$")
                 let svg = d3.select("#map_container")
                 svg = svg.select("svg")
@@ -151,8 +159,11 @@ function create_school_list(type, indexOfElement) {
                 singleSchool = elementsSchools[0]
 
                 let [cxPos,cyPos] = projection([singleSchool.lon,singleSchool.lat])
-            
+                let opacity = "50%";
+                if (listSelected.includes(childID))
+                    opacity = "100%"
                 svg.append('circle')
+                    .attr("class","hover")
                     .attr('fill', ordinalColor(singleSchool.type))
                     .attr('cx', cxPos)
                     .attr('cy', cyPos)
@@ -160,18 +171,18 @@ function create_school_list(type, indexOfElement) {
                     .attr('stroke','black')
                     .attr("stroke-width",1)
                     .attr('r', 10)
-                    .style("opacity","50%")
+                    .style("opacity",opacity)
             }
             hovering = 1
 
 
         }
         listElement.onmouseleave = function(){
-            create_map(lastBehavior)
+            d3.select("#map_container").selectAll("circle.hover").remove()
             hovering = 0
         }
         listElement.onclick = function(){
-            create_map(0)
+            create_map()
         }
         schoolCount += 1
         schoolListElement.appendChild(listElement)
@@ -184,7 +195,7 @@ function add_filters(type, indexOfElement){
     if(filtersSelection != null){
         filtersSelection.remove()
     }
-    if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1])){
+    if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7])){
         filtersSelection = document.createElement("div")
 
         filtersSelection.id = "filtersSelection_" + indexOfElement;
@@ -316,8 +327,6 @@ function create_map(onClick = 0) {
         .domain(pathwayValueNames)
         .range(d3.schemeCategory10)
 
-    const institutions = svg.append('g');
-
     if (schoolsToVisualize[0] != undefined) {
         let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
         finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
@@ -346,9 +355,23 @@ function create_map(onClick = 0) {
         }
         let schoolList = firstSchoolList.concat(finalSchoolList)
 
-        subsetInstitutions = svg.append("g")
-        pathwaysInstitutions = svg.append('g')
+        if(schoolsToVisualize.length!=0){
+            subsetInstitutions = svg.append("g")
+            subsetInstitutions.selectAll('circle')
+                // row.circles contains the array circles for the row
+                .data(schoolList)
+                .join('circle')
+                .attr('fill', d => ordinalColor(d.type))
+                .attr('cx', d => d.lonlat[0])
+                .attr('cy', d => d.lonlat[1])
+                // .attr('r', d => 10 - getIndex(d.type))
+                .attr('stroke','black')
+                .attr("stroke-width",1)
+                .attr('r', 4);
+        }
+
         if(lastBehavior == 1){
+            pathwaysInstitutions = svg.append('g')
             pathwaysInstitutions.selectAll('line')
             .data(linksBetween)
             .join('line')
@@ -360,17 +383,7 @@ function create_map(onClick = 0) {
             .attr("stroke-width", 2)
         }
 
-        subsetInstitutions.selectAll('circle')
-            // row.circles contains the array circles for the row
-            .data(schoolList)
-            .join('circle')
-            .attr('fill', d => ordinalColor(d.type))
-            .attr('cx', d => d.lonlat[0])
-            .attr('cy', d => d.lonlat[1])
-            // .attr('r', d => 10 - getIndex(d.type))
-            .attr('stroke','black')
-            .attr("stroke-width",1)
-            .attr('r', 4);
+        
     }
 }
 
