@@ -10,6 +10,7 @@ var projection, path;
 
 var lastBehavior = 0;
 hovering = 0;
+clicked = [];
 
 const land = "#d0ac7a"
 const water = "rgba(0,95,153,255)"
@@ -40,6 +41,7 @@ d3.csv("possiblePrograms.csv").then(function (programs) {
 
 function create_menu(indexOfElement, startingCutoff) {
     totalMenus += 1
+    clicked.push(0)
 
     const currentElement = document.createElement("div")
     currentElement.setAttribute("id", "typesMenu_" + indexOfElement)
@@ -66,7 +68,14 @@ function create_menu(indexOfElement, startingCutoff) {
     typeLabel.htmlFor = "institutions";
     typeLabel.setAttribute("class", "dropdown_label");
 
-    currentElement.appendChild(typeLabel).appendChild(schoolTypeSelect);
+    headerInfo = document.createElement("div")
+    headerInfo.setAttribute("id","header_"+indexOfElement)
+    headerInfo.setAttribute("class","options-header")
+
+    typeLabel.appendChild(schoolTypeSelect)
+    headerInfo.appendChild(typeLabel)
+
+    currentElement.appendChild(headerInfo);
     schoolTypeSelect.value = ""
 
     schoolTypeSelect.onchange = function () {
@@ -83,7 +92,68 @@ function create_menu(indexOfElement, startingCutoff) {
 
         create_school_list(schoolTypeSelect.value, indexOfElement)
 
+        var buttonToVisualizeAll = document.getElementById("all_button_" + indexOfElement);
+        if (buttonToVisualizeAll != null) {
+            buttonToVisualizeAll.remove()
+        }
+    
+        var buttonToVisualizeAll = document.createElement("div")
+        buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
+        buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
+        buttonToVisualizeAll.onclick = function() {
+            this.style.backgroundColor = "rgb(126, 126, 126)";
+            // Toggle button goes here, automatically turns off when something else is clicked
+            if(clicked[indexOfElement] == 0) {
+                clicked[indexOfElement] = 1
+                listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
+                listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
+                
+                schoolNames = []
+                
+                let schoolsToVisualize = []
+                let schoolType = null
+                for (const checkbox of listSelected) {
+                    returnValue = document.getElementById(checkbox).value.split("$")
+                    schoolNames.push(returnValue[0])
+                    schoolType = returnValue[1]
+                }
+                elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
+                schoolsToVisualize.push(elementsSchools)
+                let svg = d3.select("#map_container")
+                svg = svg.select("svg")
+
+                schoolsToVisualize = schoolsToVisualize[0].map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+                let opacity = "50%";
+                subsetInstitutions = svg.append("g")
+                subsetInstitutions.selectAll('circle')
+                    // row.circles contains the array circles for the row
+                    .data(schoolsToVisualize)
+                    .join('circle')
+                        .attr('fill', d => ordinalColor(d.type))
+                        .attr('cx', d => d.lonlat[0])
+                        .attr('cy', d => d.lonlat[1])
+                        // .attr('r', d => 10 - getIndex(d.type))
+                        .attr('stroke','black')
+                        .attr("stroke-width",1)
+                        .attr('r', 4)
+                        .attr("opacity",opacity)
+                        .attr("class","clickedVisualization_" + indexOfElement)
+            } else {
+                clicked[indexOfElement] = 0
+                d3.select("#map_container").selectAll("circle.clickedVisualization_"+indexOfElement).remove()
+                this.style.backgroundColor = "gainsboro";
+            }
+        }
+        
+        buttonToVisualizeAll.innerHTML = "Visualize All"
+
+        currentElement.appendChild(buttonToVisualizeAll)
+
         delete_old_menus(nextElement)
+
+        clicked = clicked.slice(0,newCutoffIndex)
+        clicked[indexOfElement] = 0
+        document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
 
         create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
 
@@ -101,21 +171,25 @@ function delete_old_menus(nextElement) {
 function create_school_list(type, indexOfElement) {
     var schoolListElement = document.getElementById("school_list_" + indexOfElement);
     if (schoolListElement != null) {
-        schoolListElement.remove()
-    }
-
-
-    schoolListElement = document.createElement("ul")
-    document.getElementById("typesMenu_" + indexOfElement).appendChild(schoolListElement);
-    schoolListElement.setAttribute('id', "school_list_" + indexOfElement)
-    schoolListElement.setAttribute('class', "school_list")
-    
+        let child = schoolListElement.lastElementChild;
+        while (child) {
+            schoolListElement.removeChild(child);
+            child = schoolListElement.lastElementChild;
+        }
+        console.log("Already Created")
+    } else {
+        schoolListElement = document.createElement("ul")
+        document.getElementById("typesMenu_" + indexOfElement).appendChild(schoolListElement);
+        schoolListElement.setAttribute('id', "school_list_" + indexOfElement)
+        schoolListElement.setAttribute('class', "school_list")
+        console.log("New creation")
+    }    
     
     if(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7]){
         school_list = schools.filter(school => school.type === type)
     } else {
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
-        optionValue = currentElement.querySelector('input[name="selector"]:checked').value;
+        optionValue = currentElement.querySelector('input[name="selector_' + indexOfElement + '"]:checked').value;
         filter1Value = document.getElementById("filter1_" + indexOfElement).value
         filter2Value = document.getElementById("filter2_" + indexOfElement).value
         if(filter1Value == "" && filter2Value == "")
@@ -139,7 +213,25 @@ function create_school_list(type, indexOfElement) {
         schoolOption.setAttribute("type", "checkbox")
         schoolOption.setAttribute("id", "school" + indexOfElement + "_" + schoolCount)
         var schoolLabel = document.createElement("label");
-        schoolLabel.innerHTML = school.name
+        labelName = document.createElement("p")
+        labelAddress = document.createElement("p")
+        labelName.setAttribute("class","label_name")
+        labelAddress.setAttribute("class","label_address")
+
+        components = school.address.split(',')
+        addressBreakdown = ""
+        if(components.length > 3){
+            addressBreakdown = components[0] + "<br>" + components[2] + ", " + components[3]
+        } else {
+            addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
+        }
+
+        labelName.innerHTML = school.name
+        labelAddress.innerHTML = addressBreakdown
+
+        schoolLabel.appendChild(labelName)
+        schoolLabel.appendChild(labelAddress)
+
         schoolLabel.htmlFor = "school" + indexOfElement + "_" + schoolCount;
         listElement.appendChild(schoolOption)
         listElement.appendChild(schoolLabel)
@@ -182,6 +274,8 @@ function create_school_list(type, indexOfElement) {
             hovering = 0
         }
         listElement.onclick = function(){
+            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+            clicked[indexOfElement] = 0
             create_map()
         }
         schoolCount += 1
@@ -190,7 +284,7 @@ function create_school_list(type, indexOfElement) {
 }
 
 function add_filters(type, indexOfElement){
-    const currentElement = document.getElementById("typesMenu_" + indexOfElement)
+    const currentElement = document.getElementById("header_" + indexOfElement)
     var filtersSelection = document.getElementById("filtersSelection_" + indexOfElement);
     if(filtersSelection != null){
         filtersSelection.remove()
@@ -235,13 +329,14 @@ function add_filters(type, indexOfElement){
         programLabel.htmlFor = "programs";
         programLabel.setAttribute("class", "dropdown_label");
         radioButtonContainer = document.createElement("fieldset")
+        radioButtonContainer.setAttribute("id","field_container_"+indexOfElement)
     
         for (const option of ["Or","And"]){
             radioButton = document.createElement("div")
             radioInput = document.createElement("input")
             radioLabel = document.createElement("label")
             radioInput.type = "radio"
-            radioInput.name = "selector"
+            radioInput.name = "selector_" + indexOfElement
             radioInput.value = option
             if(option === "Or"){
                 radioInput.checked = true;
@@ -255,10 +350,11 @@ function add_filters(type, indexOfElement){
         
         radioButtonContainer.classList.add("radioButtonsContainer")
 
-        filtersSelection.appendChild(programLabel)
+        // filtersSelection.appendChild(programLabel)
         
         optionsBox = document.createElement("div")
         optionsBox.classList.add("filterOptionsBox")
+        optionsBox.appendChild(programLabel)
         optionsBox.appendChild(filter1)
         optionsBox.appendChild(radioButtonContainer)
         optionsBox.appendChild(filter2)
@@ -266,7 +362,10 @@ function add_filters(type, indexOfElement){
         filtersSelection.classList.add("filtersContainer")
 
         filtersSelection.onchange = function () {
+            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+            d3.select("#map_container").selectAll("circle.clickedVisualization_"+indexOfElement).remove()
             create_school_list(type, indexOfElement)
+            clicked[indexOfElement] = 0
         }
 
         currentElement.append(filtersSelection)
@@ -355,6 +454,19 @@ function create_map(onClick = 0) {
         }
         let schoolList = firstSchoolList.concat(finalSchoolList)
 
+        if(lastBehavior == 1){
+            pathwaysInstitutions = svg.append('g')
+            pathwaysInstitutions.selectAll('line')
+                .data(linksBetween)
+                .join('line')
+                .attr('x1', d => d[1].lon)
+                .attr('y1', d => d[1].lat)
+                .attr('x2', d => d[2].lon)
+                .attr('y2', d => d[2].lat)
+                .attr("stroke", d => ordinalColor(d[0]))
+                .attr("stroke-width", 6)
+        }
+
         if(schoolsToVisualize.length!=0){
             subsetInstitutions = svg.append("g")
             subsetInstitutions.selectAll('circle')
@@ -367,20 +479,7 @@ function create_map(onClick = 0) {
                 // .attr('r', d => 10 - getIndex(d.type))
                 .attr('stroke','black')
                 .attr("stroke-width",1)
-                .attr('r', 4);
-        }
-
-        if(lastBehavior == 1){
-            pathwaysInstitutions = svg.append('g')
-            pathwaysInstitutions.selectAll('line')
-            .data(linksBetween)
-            .join('line')
-            .attr('x1', d => d[1].lon)
-            .attr('y1', d => d[1].lat)
-            .attr('x2', d => d[2].lon)
-            .attr('y2', d => d[2].lat)
-            .attr("stroke", d => ordinalColor(d[0]))
-            .attr("stroke-width", 2)
+                .attr('r', 6);
         }
 
         
@@ -406,14 +505,14 @@ function projectionReset(){
     projection = d3.geoTransverseMercator()
         .translate(center)
         .rotate([69.14, -45.2])
-        .scale(3800)
+        .scale(5500)
     path = d3.geoPath().projection(projection)
 }
 
 function resize(){
     height = window.innerHeight/2
-    if(height<300)
-        height = 300
+    if(height<500)
+        height = 500
     width = window.innerWidth/2
     center = [height/2,height/2]
     menuCon = document.getElementById("menu_container")
