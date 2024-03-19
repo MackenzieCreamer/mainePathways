@@ -8,6 +8,7 @@ var center;
 var states, counties;
 var schools, possiblePrograms;
 var projection, path;
+var scale = 5500;
 
 var lastBehavior = 0;
 hovering = 0;
@@ -382,6 +383,10 @@ function create_map(onClick = 0) {
     const svg = d3.select("#map_container").append('svg')
         .attr('width', height)
         .attr('height', height)
+        .on("wheel", function(d){
+            var direction = d.wheelDelta < 0 ? 'down' : 'up';
+            zoom(direction === 'up' ? 1 : 2);
+        });
     
     svg.append("rect")
         .attr("width","100%")
@@ -480,14 +485,6 @@ function create_map(onClick = 0) {
                     .attr('x',d => d.lonlat[0] - 20)
                     .attr('y',d => d.lonlat[1] - 20)
                     .attr("style", "outline: thin solid black; border-radius:100px;")
-                    // .join('circle')
-                // .attr('fill', d => ordinalColor(d.type))
-                // .attr('cx', d => d.lonlat[0])
-                // .attr('cy', d => d.lonlat[1])
-                // // .attr('r', d => 10 - getIndex(d.type))
-                    // .attr('stroke','black')
-                    // .attr("stroke-width",1)
-                // .attr('r', 6);
         }
 
         
@@ -513,7 +510,7 @@ function projectionReset(){
     projection = d3.geoTransverseMercator()
         .translate(center)
         .rotate([69.14, -45.2])
-        .scale(5500)
+        .scale(scale)
     path = d3.geoPath().projection(projection)
 }
 
@@ -534,4 +531,14 @@ function resize(){
 
 function typeToIndex(type){
     return pathwayValueNames.indexOf(type) + 1
+}
+
+function zoom(d){
+    if(d == 1){
+        scale += 300
+    } else {
+        scale -= 300
+    }
+    projectionReset()
+    create_map()
 }
