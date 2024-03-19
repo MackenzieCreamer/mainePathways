@@ -583,11 +583,14 @@ function resize(){
     center = [height/2,height/2]
     menuCon = document.getElementById("menu_container")
     mapCon = document.getElementById("map_container")
+    legendCon = document.getElementById("legend_container")
     mapCon.style.height = String(height)+"px"
     mapCon.style.width = String(height)+"px"
     menuCon.style.height = String(height)+"px"
+    legendCon.style.height = String(height)+"px"
     projectionReset()
     create_map()
+    create_legend()
 }
 
 function typeToIndex(type){
@@ -618,4 +621,48 @@ function moveMap(dx,dy){
         rotate[1] + dy * k
     ]);
     create_map()
+}
+
+function create_legend(){
+    container = d3.select("#legend_container")
+    container.html("")
+    svg = container.append('svg')
+        .attr('height', height)
+        .attr('width', 250);
+
+    var elem = svg.selectAll("g")
+        .data(pathwayValueNames)
+
+    var mouseover = function(d,name) {
+        console.log(name)
+    }
+
+    var elemEnter = elem.enter()
+        .append('g')
+        .attr("transform",function(d,i){return "translate(10," + (10 + (height/pathwayValueNames.length)*i) + ")"})
+        .on("mouseover",mouseover)
+
+    
+    elemEnter.append("svg:image")
+          .attr("width", 40)
+          .attr('height',40)
+          .attr("style", "outline: thin solid black; border-radius:100px;")
+          .attr("xlink:href",d => "images/inst"+typeToIndex(d)+".svg")
+       
+    elemEnter.append('text')
+        .attr('dx',50)
+        .attr('dy',25)
+        .text(d => d)
+
+    // svg.selectAll("image")
+    //     .data(pathwayValueNames)
+    //     .enter()
+    //     .append("svg:image")
+    //         .attr("width", 40)
+    //         .attr('height',40)
+    //         .attr("x",10)
+    //         .attr('y',(d,i)=>((10 + (height/pathwayValueNames.length)*i)))
+    //         .attr("style", "outline: thin solid black; border-radius:100px;")
+    //         .attr("xlink:href",d => "images/inst"+typeToIndex(d)+".svg")
+
 }

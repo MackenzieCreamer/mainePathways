@@ -1,6 +1,5 @@
 #menu_container {
     display: flex;
-    height: 100%;
     min-width: 500px;
     min-height: 500px;
     flex: 1;
@@ -11,10 +10,17 @@
 
 #map_container {
     border: solid black 2px;
-    height: 100%;
     margin: 10px 2.5%;
     min-width: 500px;
     min-height: 500px;
+}
+
+#legend_container{
+    height: 100%;
+    min-width: 250px;
+    min-height: 500px;
+    border: black solid 2px;
+    margin: 10px 2.5%;
 }
 
 .inner_box {
