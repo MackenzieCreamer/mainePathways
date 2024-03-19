@@ -1,5 +1,6 @@
 pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
 pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7,8]
+
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
 var width,height;
@@ -469,17 +470,24 @@ function create_map(onClick = 0) {
 
         if(schoolsToVisualize.length!=0){
             subsetInstitutions = svg.append("g")
-            subsetInstitutions.selectAll('circle')
+            subsetInstitutions.selectAll('image')
                 // row.circles contains the array circles for the row
                 .data(schoolList)
-                .join('circle')
-                .attr('fill', d => ordinalColor(d.type))
-                .attr('cx', d => d.lonlat[0])
-                .attr('cy', d => d.lonlat[1])
-                // .attr('r', d => 10 - getIndex(d.type))
-                .attr('stroke','black')
-                .attr("stroke-width",1)
-                .attr('r', 6);
+                    .join("svg:image")
+                    .attr('width',40)
+                    .attr('height',40)
+                    .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
+                    .attr('x',d => d.lonlat[0] - 20)
+                    .attr('y',d => d.lonlat[1] - 20)
+                    .attr("style", "outline: thin solid black; border-radius:100px;")
+                    // .join('circle')
+                // .attr('fill', d => ordinalColor(d.type))
+                // .attr('cx', d => d.lonlat[0])
+                // .attr('cy', d => d.lonlat[1])
+                // // .attr('r', d => 10 - getIndex(d.type))
+                    // .attr('stroke','black')
+                    // .attr("stroke-width",1)
+                // .attr('r', 6);
         }
 
         
@@ -522,4 +530,8 @@ function resize(){
     menuCon.style.height = String(height)+"px"
     projectionReset()
     create_map()
+}
+
+function typeToIndex(type){
+    return pathwayValueNames.indexOf(type) + 1
 }
