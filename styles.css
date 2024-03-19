@@ -81,16 +81,15 @@ input[type="checkbox"]+label {
     padding: 5px;
     cursor: pointer;
     border: 1px solid black;
+    background-color: gainsboro;
     color: black;
-    background-color: white;
     margin-bottom: 10px;
     width: 93%;
+    border-radius: 3px;
 }
 
 input[type="checkbox"]:checked+label {
-    border: 1px solid white;
-    color: white;
-    background-color: black;
+    background-color: rgb(126, 126, 126);
 }
 
 .label_name{
