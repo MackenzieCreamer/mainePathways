@@ -307,6 +307,14 @@ function add_filters(type, indexOfElement){
         filter2.setAttribute("class", "types_dropdown")
     
         if(type != null){
+            var programOption1 = document.createElement("option");
+            var programOption2 = document.createElement("option");
+            programOption1.value = ""
+            programOption1.text = ""
+            programOption2.value = ""
+            programOption2.text = ""
+            filter1.appendChild(programOption1);
+            filter2.appendChild(programOption2);
             let program_list = possiblePrograms.filter(program => program.types === type)
             program_list = program_list[0].programs.replace(/['"]+/g, '')
             program_list = program_list.replace(/[\[\]]/g,'');
