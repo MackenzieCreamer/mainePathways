@@ -403,6 +403,7 @@ function create_map(onClick = 0) {
         .on("mouseup", function(){
             isDown = false;
         });        
+
     svg.append("rect")
         .attr("width","100%")
         .attr("height","100%")
@@ -451,8 +452,8 @@ function create_map(onClick = 0) {
         let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
         finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
         firstSchoolList = d3.merge(firstSchoolList)
-        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
 
         let linksBetween = []
 
@@ -486,6 +487,39 @@ function create_map(onClick = 0) {
                 .attr('y2', d => d[2].lat)
                 .attr("stroke", d => ordinalColor(d[0]))
                 .attr("stroke-width", 6)
+                
+        }
+
+        var tooltip = d3.select("#map_container")
+            .append("div")
+            .style("position", "absolute")
+            .style("opacity", 0)
+            .attr("class", "tooltip")
+            .style("background-color", "white")
+            .style("border", "solid")
+            .style("border-width", "2px")
+            .style("border-radius", "5px")
+            .style("padding", "5px")
+
+        var mouseover = function(d) {
+            tooltip.style("opacity", 1)
+            }
+        var mousemove = function(d,school) {
+            components = school.address.split(',')
+            addressBreakdown = ""
+            if(components.length > 3){
+                addressBreakdown = components[0] + "<br>" + components[2] + ", " + components[3]
+            } else {
+                addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
+            }
+            fullHTML = school.name + "<br>" + addressBreakdown
+
+            tooltip.html(fullHTML)
+                .style("top", (d.pageY+10)+"px")
+                .style("left",(d.pageX+10)+"px")
+            }
+        var mouseleave = function(d) {
+            tooltip.style("opacity", 0)
         }
 
         if(schoolsToVisualize.length!=0){
@@ -493,13 +527,17 @@ function create_map(onClick = 0) {
             subsetInstitutions.selectAll('image')
                 // row.circles contains the array circles for the row
                 .data(schoolList)
-                    .join("svg:image")
+                .enter()
+                    .append("svg:image")
                     .attr('width',40)
                     .attr('height',40)
                     .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
                     .attr('x',d => d.lonlat[0] - 20)
                     .attr('y',d => d.lonlat[1] - 20)
                     .attr("style", "outline: thin solid black; border-radius:100px;")
+                    .on("mouseover", mouseover)
+                    .on("mousemove", mousemove)
+                    .on("mouseleave", mouseleave)
         }
 
         
@@ -561,7 +599,6 @@ function zoom(d){
 
 function getCenter(){
     let [lon,lat] = projection.invert(center)
-
     return [lon,lat]
 }
 
