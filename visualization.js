@@ -8,7 +8,9 @@ var center;
 var states, counties;
 var schools, possiblePrograms;
 var projection, path;
-var scale = 5500;
+var scale = 5500,isDown=false;
+const sensitivity = 75;
+var previousCoordinates;
 
 var lastBehavior = 0;
 hovering = 0;
@@ -178,13 +180,11 @@ function create_school_list(type, indexOfElement) {
             schoolListElement.removeChild(child);
             child = schoolListElement.lastElementChild;
         }
-        console.log("Already Created")
     } else {
         schoolListElement = document.createElement("ul")
         document.getElementById("typesMenu_" + indexOfElement).appendChild(schoolListElement);
         schoolListElement.setAttribute('id', "school_list_" + indexOfElement)
         schoolListElement.setAttribute('class', "school_list")
-        console.log("New creation")
     }    
     
     if(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7]){
@@ -386,8 +386,23 @@ function create_map(onClick = 0) {
         .on("wheel", function(d){
             var direction = d.wheelDelta < 0 ? 'down' : 'up';
             zoom(direction === 'up' ? 1 : 2);
-        });
-    
+        })
+        .on("mousedown", function(d){
+            isDown = true;  
+            previousCoordinates = d3.pointer(d);
+        })
+        .on('mousemove',function(d){
+            if(isDown){
+                currentCoordinates = d3.pointer(d);
+                let dx = previousCoordinates[0]-currentCoordinates[0]
+                let dy = previousCoordinates[1]-currentCoordinates[1]
+                previousCoordinates = currentCoordinates
+                moveMap(dx,dy);
+            }  
+        })
+        .on("mouseup", function(){
+            isDown = false;
+        });        
     svg.append("rect")
         .attr("width","100%")
         .attr("height","100%")
@@ -506,10 +521,10 @@ function initialize() {
 }
 sleep(1000).then(() => { initialize(); });
 
-function projectionReset(){
+function projectionReset(lon=-69.14,lat=45.2){
     projection = d3.geoTransverseMercator()
         .translate(center)
-        .rotate([69.14, -45.2])
+        .rotate([-lon, -lat])
         .scale(scale)
     path = d3.geoPath().projection(projection)
 }
@@ -535,10 +550,27 @@ function typeToIndex(type){
 
 function zoom(d){
     if(d == 1){
-        scale += 300
+        scale += 400
     } else {
-        scale -= 300
+        scale -= 400
     }
-    projectionReset()
+    let [lon,lat] = getCenter()
+    projectionReset(lon,lat)
+    create_map()
+}
+
+function getCenter(){
+    let [lon,lat] = projection.invert(center)
+
+    return [lon,lat]
+}
+
+function moveMap(dx,dy){
+    const rotate = projection.rotate();
+    const k = sensitivity / projection.scale();
+    projection.rotate([
+        rotate[0] - dx * k,
+        rotate[1] + dy * k
+    ]);
     create_map()
 }
