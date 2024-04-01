@@ -149,3 +149,7 @@ input[type="checkbox"]:checked+label {
     margin: auto;
     display: flex;
 }
+
+.legendBoxes{
+    cursor: pointer;
+}
