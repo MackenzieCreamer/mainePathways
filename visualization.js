@@ -17,14 +17,14 @@ hovering = 0;
 clicked = [];
 
 // Make an array of nodes to display of lower opacity
-var display_legend_elements = {"Elementary School":"all",
-    "Middle School":"all",
-    "High School":"all",
-    "CTE":"all",
-    "Community College":"all",
-    "University/Colleges":"all",
-    "Graduate":"all",
-    "Company":"all"
+var display_legend_elements = {"Elementary School":"none",
+    "Middle School":"none",
+    "High School":"none",
+    "CTE":"none",
+    "Community College":"none",
+    "University/Colleges":"none",
+    "Graduate":"none",
+    "Company":"none"
 }
 
 const land = "#d0ac7a"
@@ -471,6 +471,33 @@ function create_map(onClick = 0) {
         .domain(pathwayValueNames)
         .range(d3.schemeCategory10)
 
+    schoolsToPreview = []
+    for(const name of pathwayValueNames){
+        if(display_legend_elements[name] === "all") {
+            previewSchoolList = schools.filter(school => name === school.type)
+            previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
+            schoolsToPreview.push(previewSchoolList)
+        } else {
+            console.log("beep")
+        }
+    }
+    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+
+    // previewSchools = schoolsToVisualize[0].map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+    previewVisualizations = svg.append("g")
+    previewVisualizations.selectAll('image')
+        // row.circles contains the array circles for the row
+        .data(schoolsToPreview)
+            .enter()
+            .append("svg:image")
+            .attr('width',14)
+            .attr('height',14)
+            .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
+            .attr('x',d => d.lonlat[0] - 7)
+            .attr('y',d => d.lonlat[1] - 7)
+            .attr("style", "outline: 1px solid black; border-radius:100px;")
+            .attr("opacity","50%")
+
     if (schoolsToVisualize[0] != undefined) {
         let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
         finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
@@ -578,9 +605,9 @@ function sleep(ms) {
 function initialize() {
     resize()
     create_menu(0, 0)
-    create_map()
+    sleep(500).then(() => { create_map(); })
 }
-sleep(1000).then(() => { initialize(); });
+sleep(500).then(() => { initialize(); });
 
 function projectionReset(lon=-69.14,lat=45.2){
     projection = d3.geoTransverseMercator()
@@ -649,22 +676,32 @@ function create_legend(){
         .data(pathwayValueNames)
 
     var mouseover = function(d,name) {
-        console.log(name)
+        selectedElement = d3.select("#"+this.firstChild.id)
+        if(display_legend_elements[name]==="all"){
+            display_legend_elements[name]="none"
+            selectedElement.attr("fill","transparent")
+        } else {
+            display_legend_elements[name]="all"
+            selectedElement.attr("fill","gainsboro")
+        }
+        create_map()
     }
 
     var elemEnter = elem.enter()
         .append('g')
         .attr("transform",function(d,i){return "translate(10," + (10 + (height/pathwayValueNames.length)*i) + ")"})
-        .on("mouseover",mouseover)
+        .on("click",mouseover)
         .classed("legendBoxes",true)
 
     elemEnter.append('rect')
         .attr('x',0)
         .attr('y',0)
+        .attr("stroke", "black")
+        .attr("border-radius","100px")
         .attr("fill","transparent")
-        .attr("style", "outline: thin solid black; border-radius:100px;")
         .attr("width","90%")
         .attr("height","46px")
+        .attr("id", function(d,i){ var result = 'legend_'+i; return result; })
     
     elemEnter.append("svg:image")
           .attr("width", 40)
@@ -677,6 +714,7 @@ function create_legend(){
     elemEnter.append('text')
         .attr('dx',50)
         .attr('dy',28)
+        .attr("class","no-select")
         .text(d => d)
 }
 
