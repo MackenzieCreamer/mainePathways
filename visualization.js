@@ -16,6 +16,17 @@ var lastBehavior = 0;
 hovering = 0;
 clicked = [];
 
+// Make an array of nodes to display of lower opacity
+var display_legend_elements = {"Elementary School":"all",
+    "Middle School":"all",
+    "High School":"all",
+    "CTE":"all",
+    "Community College":"all",
+    "University/Colleges":"all",
+    "Graduate":"all",
+    "Company":"all"
+}
+
 const land = "#d0ac7a"
 const water = "rgba(0,95,153,255)"
 
@@ -39,9 +50,6 @@ d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
 d3.csv("possiblePrograms.csv").then(function (programs) {
     possiblePrograms = programs;
 });
-
-
-
 
 function create_menu(indexOfElement, startingCutoff) {
     totalMenus += 1
@@ -254,9 +262,17 @@ function create_school_list(type, indexOfElement) {
 
                 let [cxPos,cyPos] = projection([singleSchool.lon,singleSchool.lat])
                 let opacity = "50%";
-                if (listSelected.includes(childID))
-                    opacity = "100%"
-                svg.append('circle')
+                if (listSelected.includes(childID)){
+                    svg.append("svg:image")
+                        .attr("class","hover")
+                        .attr('width',50)
+                        .attr('height',50)
+                        .attr('x', cxPos-25)
+                        .attr('y', cyPos-25)
+                        .attr("xlink:href","images/inst"+typeToIndex(singleSchool.type)+".svg")
+                        .attr("style", "outline: thin solid black; border-radius:100px;")
+                } else {
+                    svg.append('circle')
                     .attr("class","hover")
                     .attr('fill', ordinalColor(singleSchool.type))
                     .attr('cx', cxPos)
@@ -266,13 +282,12 @@ function create_school_list(type, indexOfElement) {
                     .attr("stroke-width",1)
                     .attr('r', 10)
                     .style("opacity",opacity)
+                }
             }
             hovering = 1
-
-
         }
         listElement.onmouseleave = function(){
-            d3.select("#map_container").selectAll("circle.hover").remove()
+            d3.select("#map_container").selectAll(".hover").remove()
             hovering = 0
         }
         listElement.onclick = function(){
@@ -641,28 +656,27 @@ function create_legend(){
         .append('g')
         .attr("transform",function(d,i){return "translate(10," + (10 + (height/pathwayValueNames.length)*i) + ")"})
         .on("mouseover",mouseover)
+        .classed("legendBoxes",true)
 
+    elemEnter.append('rect')
+        .attr('x',0)
+        .attr('y',0)
+        .attr("fill","transparent")
+        .attr("style", "outline: thin solid black; border-radius:100px;")
+        .attr("width","90%")
+        .attr("height","46px")
     
     elemEnter.append("svg:image")
           .attr("width", 40)
           .attr('height',40)
+          .attr('x',3)
+          .attr('y',3)
           .attr("style", "outline: thin solid black; border-radius:100px;")
           .attr("xlink:href",d => "images/inst"+typeToIndex(d)+".svg")
-       
+        
     elemEnter.append('text')
         .attr('dx',50)
-        .attr('dy',25)
+        .attr('dy',28)
         .text(d => d)
-
-    // svg.selectAll("image")
-    //     .data(pathwayValueNames)
-    //     .enter()
-    //     .append("svg:image")
-    //         .attr("width", 40)
-    //         .attr('height',40)
-    //         .attr("x",10)
-    //         .attr('y',(d,i)=>((10 + (height/pathwayValueNames.length)*i)))
-    //         .attr("style", "outline: thin solid black; border-radius:100px;")
-    //         .attr("xlink:href",d => "images/inst"+typeToIndex(d)+".svg")
-
 }
+
