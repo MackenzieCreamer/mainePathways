@@ -290,16 +290,16 @@ function create_school_list(type, indexOfElement) {
             hovering = 1
         }
         listElement.onmouseleave = function(){
-            d3.select("#map_container").selectAll(".hover").remove()
+        d3.select("#map_container").selectAll(".hover").remove()
             hovering = 0
         }
+        listElement.onclick = function(){
+            clicked[indexOfElement] = 0
+            create_map()
         if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7])){
-            listElement.onclick = function(){
-                document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
-                clicked[indexOfElement] = 0
-                create_map()
+            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
         }
-        }
+    }
         schoolCount += 1
         schoolListElement.appendChild(listElement)
     }
@@ -483,7 +483,7 @@ function create_map(onClick = 0) {
             previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
             schoolsToPreview.push(previewSchoolList)
         } else {
-            console.log("beep")
+            //do something with this
         }
     }
     schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
