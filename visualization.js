@@ -109,6 +109,7 @@ function create_menu(indexOfElement, startingCutoff) {
             buttonToVisualizeAll.remove()
         }
     
+        if(!(schoolTypeSelect.value == pathwayValues[0][0] || schoolTypeSelect.value == pathwayValues[0][1] || schoolTypeSelect.value == pathwayValues[0][7])) {
         var buttonToVisualizeAll = document.createElement("div")
         buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
         buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
@@ -160,12 +161,14 @@ function create_menu(indexOfElement, startingCutoff) {
         buttonToVisualizeAll.innerHTML = "Visualize All"
 
         currentElement.appendChild(buttonToVisualizeAll)
-
-        delete_old_menus(nextElement)
-
         clicked = clicked.slice(0,newCutoffIndex)
         clicked[indexOfElement] = 0
         document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+    }
+
+        delete_old_menus(nextElement)
+
+
 
         create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
 
@@ -290,10 +293,12 @@ function create_school_list(type, indexOfElement) {
             d3.select("#map_container").selectAll(".hover").remove()
             hovering = 0
         }
-        listElement.onclick = function(){
-            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
-            clicked[indexOfElement] = 0
-            create_map()
+        if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7])){
+            listElement.onclick = function(){
+                document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+                clicked[indexOfElement] = 0
+                create_map()
+        }
         }
         schoolCount += 1
         schoolListElement.appendChild(listElement)
