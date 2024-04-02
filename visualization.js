@@ -116,6 +116,7 @@ function create_menu(indexOfElement, startingCutoff) {
         buttonToVisualizeAll.onclick = function() {
             this.style.backgroundColor = "rgb(126, 126, 126)";
             // Toggle button goes here, automatically turns off when something else is clicked
+            selectedElement = d3.select("#legend_"+pathwayValueNames.indexOf(schoolTypeSelect.value))
             if(clicked[indexOfElement] == 0) {
                 clicked[indexOfElement] = 1
                 listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
@@ -132,30 +133,16 @@ function create_menu(indexOfElement, startingCutoff) {
                 }
                 elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
                 schoolsToVisualize.push(elementsSchools)
-                let svg = d3.select("#map_container")
-                svg = svg.select("svg")
-
-                schoolsToVisualize = schoolsToVisualize[0].map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-                let opacity = "50%";
-                subsetInstitutions = svg.append("g")
-                subsetInstitutions.selectAll('circle')
-                    // row.circles contains the array circles for the row
-                    .data(schoolsToVisualize)
-                    .join('circle')
-                        .attr('fill', d => ordinalColor(d.type))
-                        .attr('cx', d => d.lonlat[0])
-                        .attr('cy', d => d.lonlat[1])
-                        // .attr('r', d => 10 - getIndex(d.type))
-                        .attr('stroke','black')
-                        .attr("stroke-width",1)
-                        .attr('r', 4)
-                        .attr("opacity",opacity)
-                        .attr("class","clickedVisualization_" + indexOfElement)
+                
+                display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
+                selectedElement.attr("fill","gainsboro")
             } else {
                 clicked[indexOfElement] = 0
-                d3.select("#map_container").selectAll("circle.clickedVisualization_"+indexOfElement).remove()
+                display_legend_elements[schoolTypeSelect.value] = "none"
                 this.style.backgroundColor = "gainsboro";
+                selectedElement.attr("fill","transparent")
             }
+            create_map()
         }
         
         buttonToVisualizeAll.innerHTML = "Visualize All"
@@ -168,8 +155,6 @@ function create_menu(indexOfElement, startingCutoff) {
 
         delete_old_menus(nextElement)
 
-
-
         create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
 
         create_map()
@@ -178,11 +163,18 @@ function create_menu(indexOfElement, startingCutoff) {
 
 function delete_old_menus(nextElement) {
     for (let i = nextElement, oldTotal = totalMenus; i < oldTotal; i++) {
+        type = document.getElementById("typesDropdown" + i).value
+        element = document.getElementById("all_button_" + i)
+        if(element!==null)
+            if (window.getComputedStyle(element,null).getPropertyValue('background-color')=="rgb(126, 126, 126)") {
+                display_legend_elements[type] = "none"
+                d3.select("#legend_" + pathwayValueNames.indexOf(type)).attr("fill","transparent")
+            }
         document.getElementById("typesMenu_" + i).remove();
         totalMenus -= 1
     }
 }
-
+// rgb(126, 126, 126)
 function create_school_list(type, indexOfElement) {
     var schoolListElement = document.getElementById("school_list_" + indexOfElement);
     if (schoolListElement != null) {
@@ -482,13 +474,13 @@ function create_map(onClick = 0) {
             previewSchoolList = schools.filter(school => name === school.type)
             previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
             schoolsToPreview.push(previewSchoolList)
-        } else {
-            //do something with this
+        } else if(display_legend_elements[name] !== "none") {
+            previewSchoolList = display_legend_elements[name]
+            previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
+            schoolsToPreview.push(previewSchoolList[0])
         }
     }
     schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-
-    // previewSchools = schoolsToVisualize[0].map(d => ({ name: d.name, type: d.type, lonlat: projection([d.lon, d.lat]) }))
     previewVisualizations = svg.append("g")
     previewVisualizations.selectAll('image')
         // row.circles contains the array circles for the row
@@ -680,14 +672,17 @@ function create_legend(){
     var elem = svg.selectAll("g")
         .data(pathwayValueNames)
 
-    var mouseover = function(d,name) {
+    var onClick = function(d,name) {
         selectedElement = d3.select("#"+this.firstChild.id)
         if(display_legend_elements[name]==="all"){
             display_legend_elements[name]="none"
             selectedElement.attr("fill","transparent")
-        } else {
+        } else if(display_legend_elements[name]==="none"){
             display_legend_elements[name]="all"
             selectedElement.attr("fill","gainsboro")
+        } else {
+            display_legend_elements[name]="none"
+            selectedElement.attr("fill","transparent")
         }
         create_map()
     }
@@ -695,7 +690,7 @@ function create_legend(){
     var elemEnter = elem.enter()
         .append('g')
         .attr("transform",function(d,i){return "translate(10," + (10 + (height/pathwayValueNames.length)*i) + ")"})
-        .on("click",mouseover)
+        .on("click",onClick)
         .classed("legendBoxes",true)
 
     elemEnter.append('rect')
