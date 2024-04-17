@@ -1,5 +1,11 @@
+document.getElementById("legend_selection").value = "visualizeClick"
+
 pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
 pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7,8]
+
+pathwayValueReversed = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
+
+blockedLegends = []
 
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
@@ -8,9 +14,11 @@ var center;
 var states, counties;
 var schools, possiblePrograms;
 var projection, path;
-var scale = 5500,isDown=false;
+var scale = 5500, isDown=false;
 const sensitivity = 75;
 var previousCoordinates;
+
+placeHolder = pathwayValueReversed.reverse()
 
 var lastBehavior = 0;
 hovering = 0;
@@ -51,7 +59,7 @@ d3.csv("possiblePrograms.csv").then(function (programs) {
     possiblePrograms = programs;
 });
 
-function create_menu(indexOfElement, startingCutoff) {
+function create_menu(indexOfElement, startingCutoff,type="") {
     totalMenus += 1
     clicked.push(0)
 
@@ -68,7 +76,14 @@ function create_menu(indexOfElement, startingCutoff) {
     schoolTypeSelect.id = "typesDropdown" + indexOfElement;
     schoolTypeSelect.setAttribute("class", "types_dropdown")
 
-    for (const type of pathwayValues[0].slice(startingCutoff, pathwayValues[0].length)) {
+    if(type===""){
+        for (const elemType of pathwayValues[0].slice(startingCutoff, pathwayValues[0].length)) {
+            var schoolOption = document.createElement("option");
+            schoolOption.value = elemType;
+            schoolOption.text = elemType;
+            schoolTypeSelect.appendChild(schoolOption);
+        }
+    } else {
         var schoolOption = document.createElement("option");
         schoolOption.value = type;
         schoolOption.text = type;
@@ -88,7 +103,67 @@ function create_menu(indexOfElement, startingCutoff) {
     headerInfo.appendChild(typeLabel)
 
     currentElement.appendChild(headerInfo);
-    schoolTypeSelect.value = ""
+    schoolTypeSelect.value = type
+    if(schoolTypeSelect.value != ""){
+        add_filters(schoolTypeSelect.value,indexOfElement)
+
+        pathwayNameIndex = pathwayValues[0].indexOf(schoolTypeSelect.value)
+
+        valueRank = pathwayValues[1][pathwayNameIndex]
+
+        newCutoffIndex = pathwayValues[1].indexOf(valueRank, 0)
+
+        nextElement = indexOfElement + 1
+
+        create_school_list(schoolTypeSelect.value, indexOfElement)
+
+        var buttonToVisualizeAll = document.getElementById("all_button_" + indexOfElement);
+        if (buttonToVisualizeAll != null) {
+            buttonToVisualizeAll.remove()
+        }
+    
+            var buttonToVisualizeAll = document.createElement("div")
+            buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
+            buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
+            buttonToVisualizeAll.onclick = function() {
+                this.style.backgroundColor = "rgb(126, 126, 126)";
+                // Toggle button goes here, automatically turns off when something else is clicked
+                selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
+                if(clicked[indexOfElement] == 0) {
+                    clicked[indexOfElement] = 1
+                    listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
+                    listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
+                    
+                    schoolNames = []
+                    
+                    let schoolsToVisualize = []
+                    let schoolType = null
+                    for (const checkbox of listSelected) {
+                        returnValue = document.getElementById(checkbox).value.split("$")
+                        schoolNames.push(returnValue[0])
+                        schoolType = returnValue[1]
+                    }
+                    elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
+                    schoolsToVisualize.push(elementsSchools)
+                    
+                    display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
+                    selectedElement.attr("fill","gainsboro")
+                } else {
+                    clicked[indexOfElement] = 0
+                    display_legend_elements[schoolTypeSelect.value] = "none"
+                    this.style.backgroundColor = "gainsboro";
+                    selectedElement.attr("fill","transparent")
+                }
+                create_map()
+            }
+            
+            buttonToVisualizeAll.innerHTML = "Visualize All"
+
+            currentElement.appendChild(buttonToVisualizeAll)
+            clicked = clicked.slice(0,newCutoffIndex)
+            clicked[indexOfElement] = 0
+            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+    }
 
     schoolTypeSelect.onchange = function () {
 
@@ -109,14 +184,13 @@ function create_menu(indexOfElement, startingCutoff) {
             buttonToVisualizeAll.remove()
         }
     
-        if(!(schoolTypeSelect.value == pathwayValues[0][0] || schoolTypeSelect.value == pathwayValues[0][1] || schoolTypeSelect.value == pathwayValues[0][7])) {
         var buttonToVisualizeAll = document.createElement("div")
         buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
         buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
         buttonToVisualizeAll.onclick = function() {
             this.style.backgroundColor = "rgb(126, 126, 126)";
             // Toggle button goes here, automatically turns off when something else is clicked
-            selectedElement = d3.select("#legend_"+pathwayValueNames.indexOf(schoolTypeSelect.value))
+            selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
             if(clicked[indexOfElement] == 0) {
                 clicked[indexOfElement] = 1
                 listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
@@ -133,14 +207,17 @@ function create_menu(indexOfElement, startingCutoff) {
                 }
                 elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
                 schoolsToVisualize.push(elementsSchools)
-                
                 display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
-                selectedElement.attr("fill","gainsboro")
+                if(document.getElementById("legend_selection").value!="menuCreation")
+                    selectedElement.attr("fill","gainsboro")
             } else {
                 clicked[indexOfElement] = 0
                 display_legend_elements[schoolTypeSelect.value] = "none"
                 this.style.backgroundColor = "gainsboro";
-                selectedElement.attr("fill","transparent")
+
+                if(document.getElementById("legend_selection").value!="menuCreation"){
+                    selectedElement.attr("fill","transparent")
+                }
             }
             create_map()
         }
@@ -151,13 +228,12 @@ function create_menu(indexOfElement, startingCutoff) {
         clicked = clicked.slice(0,newCutoffIndex)
         clicked[indexOfElement] = 0
         document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
-    }
 
-        delete_old_menus(nextElement)
+    delete_old_menus(nextElement)
 
+    if(document.getElementById("legend_selection").value==="visualizeClick")
         create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
-
-        create_map()
+    create_map()
     }
 }
 
@@ -174,7 +250,7 @@ function delete_old_menus(nextElement) {
         totalMenus -= 1
     }
 }
-// rgb(126, 126, 126)
+
 function create_school_list(type, indexOfElement) {
     var schoolListElement = document.getElementById("school_list_" + indexOfElement);
     if (schoolListElement != null) {
@@ -190,7 +266,7 @@ function create_school_list(type, indexOfElement) {
         schoolListElement.setAttribute('class', "school_list")
     }    
     
-    if(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7]){
+    if(type == pathwayValues[0][0] || type == pathwayValues[0][1]){
         school_list = schools.filter(school => school.type === type)
     } else {
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
@@ -288,7 +364,7 @@ function create_school_list(type, indexOfElement) {
         listElement.onclick = function(){
             clicked[indexOfElement] = 0
             create_map()
-        if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7])){
+        if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1])){
             document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
         }
     }
@@ -303,7 +379,7 @@ function add_filters(type, indexOfElement){
     if(filtersSelection != null){
         filtersSelection.remove()
     }
-    if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1] || type == pathwayValues[0][7])){
+    if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1])){
         filtersSelection = document.createElement("div")
 
         filtersSelection.id = "filtersSelection_" + indexOfElement;
@@ -447,10 +523,13 @@ function create_map(onClick = 0) {
         .attr("d", path(counties))
         .attr("fill", land)
         .attr("stroke", "gray")
-        .attr("stroke-width", '.5px')
+        .attr("stroke-width", '2px')
 
     const schoolsToVisualize = []
-    for (let i = 0; i < totalMenus - 1; i++) {
+    bounds = totalMenus
+    if(document.getElementById("legend_selection").value==="visualizeClick")
+        bounds = totalMenus - 1
+    for (let i = 0; i < bounds; i++) {
         var schoolListElement = document.getElementById("school_list_" + i);
         var checkboxes = schoolListElement.querySelectorAll('input[type="checkbox"]:checked');
         schoolNames = []
@@ -663,33 +742,64 @@ function moveMap(dx,dy){
 }
 
 function create_legend(){
-    container = d3.select("#legend_container")
+    container = d3.select("#legend_visualization")
     container.html("")
+    legendHeight = height - 110
     svg = container.append('svg')
-        .attr('height', height)
+        .attr('height', legendHeight)
         .attr('width', 250);
 
     var elem = svg.selectAll("g")
-        .data(pathwayValueNames)
+        .data(placeHolder)
 
     var onClick = function(d,name) {
+        const matches = document.querySelectorAll("select.types_dropdown");
+        typeMatch = []
+        for(const match of matches){
+            if(match.value===name)
+                typeMatch.push(match.parentElement.parentElement.parentElement.getElementsByClassName("visualizeAllButton")[0])
+        }
+        console.log(typeMatch)
         selectedElement = d3.select("#"+this.firstChild.id)
-        if(display_legend_elements[name]==="all"){
-            display_legend_elements[name]="none"
-            selectedElement.attr("fill","transparent")
-        } else if(display_legend_elements[name]==="none"){
-            display_legend_elements[name]="all"
-            selectedElement.attr("fill","gainsboro")
+        elementID = this.firstChild.id
+        elementIndex = elementID.substring(elementID.length-1)
+        if(document.getElementById("legend_selection").value==="visualizeClick"){
+            if(display_legend_elements[name]==="all"){
+                display_legend_elements[name]="none"
+                selectedElement.attr("fill","transparent")
+                for(const element of typeMatch){
+                    element.style.backgroundColor = "gainsboro"
+                }
+            } else if(display_legend_elements[name]==="none"){
+                display_legend_elements[name]="all"
+                selectedElement.attr("fill","gainsboro")
+                for(const element of typeMatch){
+                    element.style.backgroundColor = "rgb(126, 126, 126)"
+                }
+            } else {
+                display_legend_elements[name]="none"
+                selectedElement.attr("fill","transparent")
+                for(const element of typeMatch){
+                    element.style.backgroundColor = "gainsboro"
+                }
+            }
         } else {
-            display_legend_elements[name]="none"
-            selectedElement.attr("fill","transparent")
+            if(blockedLegends.indexOf(parseInt(elementIndex)) === -1 ){
+                blockedLegends = []
+                for (const i of Array.from({length: elementIndex}, (_, i) => i + 1)) {
+                    selectedElement = d3.select("#legend_" + i)
+                    selectedElement.attr("fill","gainsboro")
+                    blockedLegends.push(i)
+                }
+                create_menu(totalMenus,0,name)
+            }
         }
         create_map()
     }
 
     var elemEnter = elem.enter()
         .append('g')
-        .attr("transform",function(d,i){return "translate(10," + (10 + (height/pathwayValueNames.length)*i) + ")"})
+        .attr("transform",function(d,i){return "translate(10," + (1+(legendHeight/pathwayValueNames.length)*i) + ")"})
         .on("click",onClick)
         .classed("legendBoxes",true)
 
@@ -701,7 +811,7 @@ function create_legend(){
         .attr("fill","transparent")
         .attr("width","90%")
         .attr("height","46px")
-        .attr("id", function(d,i){ var result = 'legend_'+i; return result; })
+        .attr("id", function(d,i){var result = 'legend_'+typeToIndex(d); return result; })
     
     elemEnter.append("svg:image")
           .attr("width", 40)
@@ -718,3 +828,20 @@ function create_legend(){
         .text(d => d)
 }
 
+function selectionChange(){
+    value = document.getElementById("legend_selection").value
+    for(const name of pathwayValueNames){
+        display_legend_elements[name] = "none"
+    }
+    for (const i of Array(pathwayValueNames.length+1).keys()) {
+        selectedElement = d3.select("#legend_" + i)
+        selectedElement.attr("fill","transparent")
+    }
+    delete_old_menus(0)
+    create_map()
+    if(value==="menuCreation"){
+        blockedLegends=[]
+    } else if(value==="visualizeClick"){
+        create_menu(0, 0)
+    }
+};

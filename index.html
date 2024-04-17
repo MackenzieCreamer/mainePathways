@@ -11,7 +11,21 @@
     <div id="full_viz_holder">
         <div id="menu_container"></div>
         <div id="map_container"></div>
-        <div id="legend_container"></div>
+        <div id="legend_container">
+            <div class="selection_container" id="filter_selection_container">
+                <select id="filter_selection" onchange="filterChange()">
+                    <option value="institution">Institution Legend</option>
+                    <option value="biolifeScience">Biolife Legend</option>
+                </select>
+            </div>
+            <div id="legend_visualization"></div>
+            <div class="selection_container" id="legend_selection_container">
+                <select id="legend_selection" onchange="selectionChange()">
+                    <option value="visualizeClick">Visualize Options</option>
+                    <option value="menuCreation">Create Menus</option>
+                </select>
+            </div>
+        </div>
     </div>
     <button class="visualize_path_button" id="test" type="button" onclick="create_map(1)">Visualize Path</button>
 </body>

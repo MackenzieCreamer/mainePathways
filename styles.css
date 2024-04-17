@@ -150,6 +150,13 @@ input[type="checkbox"]:checked+label {
     display: flex;
 }
 
+.selection_container{
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .legendBoxes{
     cursor: pointer;
 }
