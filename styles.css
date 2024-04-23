@@ -1,3 +1,41 @@
+body{
+    margin: 0;
+    padding: 0;
+}
+
+header{
+    width: calc(100vw - 4px);
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: black 2px solid;
+    background-color: #EDDCE1;
+    display: flex;
+    gap: 10px;
+}
+
+footer{
+    width: calc(100vw - 4px);
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: black 2px solid;
+    background-color: #EDDCE1;
+    display: flex;
+    gap: 10px;
+}
+
+#webpage{
+    height: calc(100vh - 88px);
+    width: 100vw;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
 #menu_container {
     display: flex;
     min-width: 500px;
@@ -26,7 +64,7 @@
 .inner_box {
     min-width: 200px;
     max-width: 200px;
-    height: 90%;
+    height: 95%;
     margin: 10px;
     border: black solid 1px;
     display: flex;
@@ -36,7 +74,7 @@
 
 .types_dropdown {
     width: 95%;
-    margin: 5px auto;
+    margin: 3px auto;
 }
 
 .options-header{
@@ -111,13 +149,15 @@ input[type="checkbox"]:checked+label {
 
 #full_viz_holder {
     display: flex;
+    width: 100%;
 }
 
 .filterOptionsBox{
     margin: 0 auto 5px auto;
     text-align: center;
+    font-size:medium;
     border: solid 1px black;
-    padding: 5px;
+    padding: 2px;
     width: 80%;
 }
 

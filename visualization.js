@@ -166,7 +166,6 @@ function create_menu(indexOfElement, startingCutoff,type="") {
     }
 
     schoolTypeSelect.onchange = function () {
-
         add_filters(schoolTypeSelect.value,indexOfElement)
 
         pathwayNameIndex = pathwayValues[0].indexOf(schoolTypeSelect.value)
@@ -271,6 +270,7 @@ function create_school_list(type, indexOfElement) {
     } else {
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
         optionValue = currentElement.querySelector('input[name="selector_' + indexOfElement + '"]:checked').value;
+        optionValue2 = currentElement.querySelector('input[name="selector2_' + indexOfElement + '"]:checked').value;
         filter1Value = document.getElementById("filter1_" + indexOfElement).value
         filter2Value = document.getElementById("filter2_" + indexOfElement).value
         if(filter1Value == "" && filter2Value == "")
@@ -284,6 +284,16 @@ function create_school_list(type, indexOfElement) {
         else
             school_list = schools.filter(school => school.type === type && (school.program.includes(filter1Value) && school.program.includes(filter2Value)))
 
+        if(indexOfElement!=0){
+
+            // school_list.sort(function(x,y){
+            //     distanceX = 0;
+            //     distanceY = 0;
+            //     if(true){
+
+            //     }
+            // })
+        }
     }
 
     schoolCount = 0
@@ -423,7 +433,7 @@ function add_filters(type, indexOfElement){
         
             
         var programLabel = document.createElement("label");
-        programLabel.innerHTML = "Programs of Interest: "
+        programLabel.innerHTML = "Filter and Sort"
         programLabel.htmlFor = "programs";
         programLabel.setAttribute("class", "dropdown_label");
         radioButtonContainer = document.createElement("fieldset")
@@ -445,8 +455,28 @@ function add_filters(type, indexOfElement){
             radioButton.appendChild(radioLabel)
             radioButtonContainer.appendChild(radioButton)
         }
-        
         radioButtonContainer.classList.add("radioButtonsContainer")
+
+        radioButtonContainer2 = document.createElement("fieldset")
+    
+        for (const option of ["A-Z","Dist."]){
+            radioButton = document.createElement("div")
+            radioInput = document.createElement("input")
+            radioLabel = document.createElement("label")
+            radioInput.type = "radio"
+            radioInput.name = "selector2_" + indexOfElement
+            radioInput.value = option
+            if(option === "A-Z"){
+                radioInput.checked = true;
+            }
+            radioLabel.for = option
+            radioLabel.innerHTML = option
+            radioButton.appendChild(radioInput)
+            radioButton.appendChild(radioLabel)
+            radioButtonContainer2.appendChild(radioButton)
+        }
+        radioButtonContainer2.classList.add("radioButtonsContainer")
+
 
         // filtersSelection.appendChild(programLabel)
         
@@ -456,6 +486,7 @@ function add_filters(type, indexOfElement){
         optionsBox.appendChild(filter1)
         optionsBox.appendChild(radioButtonContainer)
         optionsBox.appendChild(filter2)
+        optionsBox.appendChild(radioButtonContainer2)
         filtersSelection.appendChild(optionsBox)
         filtersSelection.classList.add("filtersContainer")
 
