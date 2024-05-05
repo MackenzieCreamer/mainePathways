@@ -284,18 +284,26 @@ function create_school_list(type, indexOfElement) {
         else
             school_list = schools.filter(school => school.type === type && (school.program.includes(filter1Value) && school.program.includes(filter2Value)))
 
-        if(indexOfElement!=0){
-
-            // school_list.sort(function(x,y){
-            //     distanceX = 0;
-            //     distanceY = 0;
-            //     if(true){
-
-            //     }
-            // })
+        if(indexOfElement!=0 && optionValue2 == "Dist."){
+            var potentialSchoolList = document.getElementById("school_list_" + (indexOfElement-1));
+            var checkboxes = potentialSchoolList.querySelectorAll('input[type="checkbox"]:checked');
+            last_school = checkboxes[checkboxes.length-1]
+            returnValue = last_school.value.split("$")
+            last_school_name = returnValue[0]
+            last_school_name_type = returnValue[1]
+            elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
+            var cLat = parseFloat(elementsSchool.lat),cLon = parseFloat(elementsSchool.lon);
+            school_list.sort(function(a,b){
+                var [aXPos,aYPos] = projection([parseFloat(a.lon),parseFloat(a.lat)])
+                var [bXPos,bYPos] = projection([parseFloat(b.lon),parseFloat(b.lat)])
+                let [cXPos,cYPos] = projection([cLon,cLat])
+                distanceA = Math.sqrt((cXPos-aXPos)**2+(cYPos-aYPos)**2)
+                distanceB = Math.sqrt((cXPos-bXPos)**2+(cYPos-bYPos)**2)
+                console.log([distanceA,a.name],[distanceB,b.name])
+                return (distanceA > distanceB) - (distanceA < distanceB)
+            })
         }
     }
-
     schoolCount = 0
     for (const school of school_list) {
         listElement = document.createElement("li")
