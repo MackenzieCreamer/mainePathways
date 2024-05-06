@@ -13,7 +13,6 @@ var width,height;
 var center;
 var states, counties;
 var schools, possiblePrograms;
-var projection, path;
 var scale = 5500, isDown=false;
 const sensitivity = 75;
 var previousCoordinates;
@@ -35,11 +34,6 @@ var display_legend_elements = {"Elementary School":"none",
     "Company":"none"
 }
 
-const land = "#d0ac7a"
-const water = "rgba(0,95,153,255)"
-
-window.onresize = resize;
-
 d3.json("counties-10m.json").then(function (us) {
     states = topojson.feature(us, us.objects.states, (a, b) => a !== b)
     counties = topojson.feature(us, us.objects.counties, (a, b) => a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0))
@@ -47,12 +41,54 @@ d3.json("counties-10m.json").then(function (us) {
     counties = new Object({type:"FeatureCollection",features:counties.features.filter(d => d.id.slice(0, 2) === "23")})
 });
 
-d3.json("world-50m.json").then(function (world) {
-    landSimple = topojson.feature(world, world.objects.land)
+
+var map = new L.Map("map_container", {center: [45.2, -69.14], zoom: 7})
+
+let osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map); 
+    
+//initialize svg to add to map
+L.svg({clickable:true}).addTo(map) // we have to make the svg layer clickable 
+//Create selection using D3
+const overlay = d3.select(map.getPanes().overlayPane)
+
+  
+var svgMap = d3.select(map.getPanes().overlayPane).append("svg"),
+gMap = svgMap.append("g").attr("class", "leaflet-zoom-hide");
+
+const projectPoint = function(x, y) {
+    const point = map.latLngToLayerPoint(new L.LatLng(y, x))
+    this.stream.point(point.x, point.y)
+}
+
+var mapTransform = d3.geoTransform({point: projectPoint}),
+mapPath = d3.geoPath().projection(mapTransform);
+
+var feature;
+sleep(500).then(() => { 
+    feature = gMap.selectAll("path")
+     .data(counties.features)
+    .enter().append("path");
+    reset();
 });
+map.on("zoomend", reset);
+
+
+
+window.onresize = resize;
+
 
 d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
     schools = includedSchools;
+    // name,address,lat,lon,type,program,link
+    schools = schools.map(d=> {
+        const coordinates = [d.lon,d.lat];
+        return {
+            ...d,
+            latlng: new L.LatLng(coordinates[1],coordinates[0])
+        }
+    })
 });
 
 d3.csv("possiblePrograms.csv").then(function (programs) {
@@ -294,12 +330,14 @@ function create_school_list(type, indexOfElement) {
             elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
             var cLat = parseFloat(elementsSchool.lat),cLon = parseFloat(elementsSchool.lon);
             school_list.sort(function(a,b){
-                var [aXPos,aYPos] = projection([parseFloat(a.lon),parseFloat(a.lat)])
-                var [bXPos,bYPos] = projection([parseFloat(b.lon),parseFloat(b.lat)])
-                let [cXPos,cYPos] = projection([cLon,cLat])
+                let aPos = map.latLngToLayerPoint([a.lon,a.lat])
+                let bPos = map.latLngToLayerPoint([b.lon,b.lat])
+                let cPos = map.latLngToLayerPoint([cLon,cLat])
+                var [aXPos,aYPos] = [aPos.x,aPos.y]
+                var [bXPos,bYPos] = [bPos.x,bPos.y]
+                let [cXPos,cYPos] = [cPos.x,cPos.y]
                 distanceA = Math.sqrt((cXPos-aXPos)**2+(cYPos-aYPos)**2)
                 distanceB = Math.sqrt((cXPos-bXPos)**2+(cYPos-bYPos)**2)
-                console.log([distanceA,a.name],[distanceB,b.name])
                 return (distanceA > distanceB) - (distanceA < distanceB)
             })
         }
@@ -349,10 +387,11 @@ function create_school_list(type, indexOfElement) {
 
                 singleSchool = elementsSchools[0]
 
-                let [cxPos,cyPos] = projection([singleSchool.lon,singleSchool.lat])
+                let cPos = map.latLngToLayerPoint(singleSchool.latlng)
+                let [cxPos,cyPos] = [cPos.x,cPos.y]
                 let opacity = "50%";
                 if (listSelected.includes(childID)){
-                    svg.append("svg:image")
+                    gMap.append("svg:image")
                         .attr("class","hover")
                         .attr('width',50)
                         .attr('height',50)
@@ -361,12 +400,11 @@ function create_school_list(type, indexOfElement) {
                         .attr("xlink:href","images/inst"+typeToIndex(singleSchool.type)+".svg")
                         .attr("style", "outline: thin solid black; border-radius:100px;")
                 } else {
-                    svg.append('circle')
+                    gMap.append('circle')
                     .attr("class","hover")
                     .attr('fill', ordinalColor(singleSchool.type))
                     .attr('cx', cxPos)
                     .attr('cy', cyPos)
-                    // .attr('r', d => 10 - getIndex(d.type))
                     .attr('stroke','black')
                     .attr("stroke-width",1)
                     .attr('r', 10)
@@ -512,57 +550,11 @@ function add_filters(type, indexOfElement){
 }
 
 function create_map(onClick = 0) {
+
+    console.log("test")
+
     lastBehavior = onClick
-    document.getElementById("map_container").innerHTML = ""
-
-    const svg = d3.select("#map_container").append('svg')
-        .attr('width', height)
-        .attr('height', height)
-        .on("wheel", function(d){
-            var direction = d.wheelDelta < 0 ? 'down' : 'up';
-            zoom(direction === 'up' ? 1 : 2);
-        })
-        .on("mousedown", function(d){
-            isDown = true;  
-            previousCoordinates = d3.pointer(d);
-        })
-        .on('mousemove',function(d){
-            if(isDown){
-                currentCoordinates = d3.pointer(d);
-                let dx = previousCoordinates[0]-currentCoordinates[0]
-                let dy = previousCoordinates[1]-currentCoordinates[1]
-                previousCoordinates = currentCoordinates
-                moveMap(dx,dy);
-            }  
-        })
-        .on("mouseup", function(){
-            isDown = false;
-        });        
-
-    svg.append("rect")
-        .attr("width","100%")
-        .attr("height","100%")
-        .attr("fill",water);
-
-    svg.append("path")
-        .attr("d",path(landSimple))
-        .attr("fill", land)
-        .attr("stroke", "gray")
-        .attr("stroke-width", '1px')
-
-    svg.append("path")
-        .attr("d", path(states))
-        .attr("fill", land)
-        .attr("stroke", "gray")
-        .attr("stroke-width", '1px')
-
-        
-    // draw one svg path per zip code
-    svg.append("path")
-        .attr("d", path(counties))
-        .attr("fill", land)
-        .attr("stroke", "gray")
-        .attr("stroke-width", '2px')
+    d3.selectAll(".mapElement").remove();
 
     const schoolsToVisualize = []
     bounds = totalMenus
@@ -581,7 +573,6 @@ function create_map(onClick = 0) {
         elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
         schoolsToVisualize.push(elementsSchools)
     }
-
     ordinalColor = d3.scaleOrdinal()
         .domain(pathwayValueNames)
         .range(d3.schemeCategory10)
@@ -598,43 +589,47 @@ function create_map(onClick = 0) {
             schoolsToPreview.push(previewSchoolList[0])
         }
     }
-    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-    previewVisualizations = svg.append("g")
-    previewVisualizations.selectAll('image')
-        // row.circles contains the array circles for the row
-        .data(schoolsToPreview)
-            .enter()
-            .append("svg:image")
-            .attr('width',14)
-            .attr('height',14)
-            .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
-            .attr('x',d => d.lonlat[0] - 7)
-            .attr('y',d => d.lonlat[1] - 7)
-            .attr("style", "outline: 1px solid black; border-radius:100px;")
-            .attr("opacity","50%")
+    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
+
+    if(schoolsToPreview[0]!=undefined){
+        previewVisualizations = gMap.append("g")
+        previewVisualizations.selectAll('image')
+            // row.circles contains the array circles for the row
+            .data(schoolsToPreview)
+                .enter()
+                .append("svg:image")
+                .attr('width',14)
+                .attr('height',14)
+                .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
+                .attr('x',d => d.lonlat.x - 7)
+                .attr('y',d => d.lonlat.y - 7)
+                .attr("style", "outline: 1px solid black; border-radius:100px;")
+                .attr("opacity","50%")
+                .attr("class","mapElement")
+    }
+    
 
     if (schoolsToVisualize[0] != undefined) {
         let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
         finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
         firstSchoolList = d3.merge(firstSchoolList)
-        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
-        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: projection([d.lon, d.lat]) }))
+        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
+        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
 
         let linksBetween = []
 
         for (let i = 0; i < firstSchoolList.length - 1; i++) {
             linksBetween.push([firstSchoolList[i].type,
-            { lat: firstSchoolList[i].lonlat[1], lon: firstSchoolList[i].lonlat[0] },
-            { lat: firstSchoolList[i + 1].lonlat[1], lon: firstSchoolList[i + 1].lonlat[0] }
+            { lat: firstSchoolList[i].lonlat.y, lon: firstSchoolList[i].lonlat.x },
+            { lat: firstSchoolList[i + 1].lonlat.y, lon: firstSchoolList[i + 1].lonlat.x }
             ])
         };
 
         let finalFirstSchool = firstSchoolList[firstSchoolList.length - 1]
 
-        // let schoolLinks = d3.cross(, finalSchoolList)
         if (finalFirstSchool != undefined) {
-            let finalFirstSchoolLatLon = ({ lat: finalFirstSchool.lonlat[1], lon: finalFirstSchool.lonlat[0] })
-            finalSchoolsLatLon = finalSchoolList.map(d => ({ lat: d.lonlat[1], lon: d.lonlat[0] }))
+            let finalFirstSchoolLatLon = ({ lat: finalFirstSchool.lonlat.y, lon: finalFirstSchool.lonlat.x })
+            finalSchoolsLatLon = finalSchoolList.map(d => ({ lat: d.lonlat.y, lon: d.lonlat.x }))
             let finalLinksBetween = finalSchoolsLatLon.map(d => [finalFirstSchool.type, finalFirstSchoolLatLon, d])
 
             linksBetween = linksBetween.concat(finalLinksBetween)
@@ -642,7 +637,7 @@ function create_map(onClick = 0) {
         let schoolList = firstSchoolList.concat(finalSchoolList)
 
         if(lastBehavior == 1){
-            pathwaysInstitutions = svg.append('g')
+            pathwaysInstitutions = gMap.append('g')
             pathwaysInstitutions.selectAll('line')
                 .data(linksBetween)
                 .join('line')
@@ -652,7 +647,7 @@ function create_map(onClick = 0) {
                 .attr('y2', d => d[2].lat)
                 .attr("stroke", d => ordinalColor(d[0]))
                 .attr("stroke-width", 6)
-                
+                .attr("class","mapElement")    
         }
 
         var tooltip = d3.select("#map_container")
@@ -688,7 +683,7 @@ function create_map(onClick = 0) {
         }
 
         if(schoolsToVisualize.length!=0){
-            subsetInstitutions = svg.append("g")
+            subsetInstitutions = gMap.append("g")
             subsetInstitutions.selectAll('image')
                 // row.circles contains the array circles for the row
                 .data(schoolList)
@@ -697,9 +692,10 @@ function create_map(onClick = 0) {
                     .attr('width',40)
                     .attr('height',40)
                     .attr("xlink:href",d => "images/inst"+typeToIndex(d.type)+".svg")
-                    .attr('x',d => d.lonlat[0] - 20)
-                    .attr('y',d => d.lonlat[1] - 20)
+                    .attr('x',d => d.lonlat.x - 20)
+                    .attr('y',d => d.lonlat.y - 20)
                     .attr("style", "outline: thin solid black; border-radius:100px;")
+                    .attr("class","mapElement")
                     .on("mouseover", mouseover)
                     .on("mousemove", mousemove)
                     .on("mouseleave", mouseleave)
@@ -720,7 +716,6 @@ function sleep(ms) {
 function initialize() {
     resize()
     create_menu(0, 0)
-    sleep(500).then(() => { create_map(); })
 }
 sleep(500).then(() => { initialize(); });
 
@@ -745,7 +740,6 @@ function resize(){
     mapCon.style.width = String(height)+"px"
     menuCon.style.height = String(height)+"px"
     legendCon.style.height = String(height)+"px"
-    projectionReset()
     create_map()
     create_legend()
 }
@@ -754,31 +748,30 @@ function typeToIndex(type){
     return pathwayValueNames.indexOf(type) + 1
 }
 
-function zoom(d){
-    if(d == 1){
-        scale += 400
-    } else {
-        scale -= 400
-    }
-    let [lon,lat] = getCenter()
-    projectionReset(lon,lat)
-    create_map()
-}
+// function zoom(d){
+//     if(d == 1){
+//         scale += 400
+//     } else {
+//         scale -= 400
+//     }
+//     let [lon,lat] = getCenter()
+//     create_map()
+// }
 
-function getCenter(){
-    let [lon,lat] = projection.invert(center)
-    return [lon,lat]
-}
+// function getCenter(){
+//     let [lon,lat] = projection.invert(center)
+//     return [lon,lat]
+// }
 
-function moveMap(dx,dy){
-    const rotate = projection.rotate();
-    const k = sensitivity / projection.scale();
-    projection.rotate([
-        rotate[0] - dx * k,
-        rotate[1] + dy * k
-    ]);
-    create_map()
-}
+// function moveMap(dx,dy){
+//     const rotate = projection.rotate();
+//     const k = sensitivity / projection.scale();
+//     projection.rotate([
+//         rotate[0] - dx * k,
+//         rotate[1] + dy * k
+//     ]);
+//     create_map()
+// }
 
 function create_legend(){
     container = d3.select("#legend_visualization")
@@ -798,7 +791,6 @@ function create_legend(){
             if(match.value===name)
                 typeMatch.push(match.parentElement.parentElement.parentElement.getElementsByClassName("visualizeAllButton")[0])
         }
-        console.log(typeMatch)
         selectedElement = d3.select("#"+this.firstChild.id)
         elementID = this.firstChild.id
         elementIndex = elementID.substring(elementID.length-1)
@@ -884,3 +876,21 @@ function selectionChange(){
         create_menu(0, 0)
     }
 };
+
+function reset() {
+    var bounds = mapPath.bounds(counties),
+        topLeft = bounds[0],
+        bottomRight = bounds[1];
+
+    svgMap.attr("width", bottomRight[0] - topLeft[0])
+        .attr("height", bottomRight[1] - topLeft[1])
+        .style("left", topLeft[0] + "px")
+        .style("top", topLeft[1] + "px");
+
+    gMap.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+
+    feature.attr("d", mapPath)
+        .attr("class","county");
+
+    create_map();
+}

@@ -136,6 +136,12 @@ input[type="checkbox"]:checked+label {
     background-color: rgb(126, 126, 126);
 }
 
+.county{
+    fill: transparent;
+    stroke-opacity: .5;
+    stroke: black;
+}
+
 .label_name{
     font-size: 14px;
     font-weight: bold;
