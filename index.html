@@ -16,8 +16,6 @@
 <body>
     <div id="webpage">
         <div id="full_viz_holder">
-            <div id="menu_container"></div>
-            <div id="map_container"></div>
             <div id="legend_container">
                 <div class="selection_container" id="filter_selection_container">
                     <select id="filter_selection" onchange="filterChange()">
@@ -33,6 +31,8 @@
                     </select>
                 </div>
             </div>
+            <div id="map_container"></div>
+            <div id="menu_container"></div>
         </div>
         <button class="visualize_path_button" id="test" type="button" onclick="create_map(1)">Visualize Path</button>
     </div>

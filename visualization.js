@@ -1,10 +1,10 @@
 document.getElementById("legend_selection").value = "visualizeClick"
 
-pathwayValueNames = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
-pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7,8]
+pathwayValueNames = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
+pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
-pathwayValueReversed = ["Elementary School", "Middle School","High School", "CTE", "Community College", "University/Colleges", "Graduate","Company"]
-
+pathwayValueReversed = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
+// Research Institutes
 blockedLegends = []
 
 pathwayValues = [pathwayValueNames, pathwayValueRanks]
@@ -27,10 +27,13 @@ clicked = [];
 var display_legend_elements = {"Elementary School":"none",
     "Middle School":"none",
     "High School":"none",
+    "HS STEM Program":"none",
     "CTE":"none",
     "Community College":"none",
     "University/Colleges":"none",
+    "Undergrad STEM Program":"none",
     "Graduate":"none",
+    "Research Institute":"none",
     "Company":"none"
 }
 
@@ -301,7 +304,7 @@ function create_school_list(type, indexOfElement) {
         schoolListElement.setAttribute('class', "school_list")
     }    
     
-    if(type == pathwayValues[0][0] || type == pathwayValues[0][1]){
+    if(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute"){
         school_list = schools.filter(school => school.type === type)
     } else {
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
@@ -324,22 +327,25 @@ function create_school_list(type, indexOfElement) {
             var potentialSchoolList = document.getElementById("school_list_" + (indexOfElement-1));
             var checkboxes = potentialSchoolList.querySelectorAll('input[type="checkbox"]:checked');
             last_school = checkboxes[checkboxes.length-1]
-            returnValue = last_school.value.split("$")
-            last_school_name = returnValue[0]
-            last_school_name_type = returnValue[1]
-            elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
-            var cLat = parseFloat(elementsSchool.lat),cLon = parseFloat(elementsSchool.lon);
-            school_list.sort(function(a,b){
-                let aPos = map.latLngToLayerPoint([a.lon,a.lat])
-                let bPos = map.latLngToLayerPoint([b.lon,b.lat])
-                let cPos = map.latLngToLayerPoint([cLon,cLat])
-                var [aXPos,aYPos] = [aPos.x,aPos.y]
-                var [bXPos,bYPos] = [bPos.x,bPos.y]
-                let [cXPos,cYPos] = [cPos.x,cPos.y]
-                distanceA = Math.sqrt((cXPos-aXPos)**2+(cYPos-aYPos)**2)
-                distanceB = Math.sqrt((cXPos-bXPos)**2+(cYPos-bYPos)**2)
-                return (distanceA > distanceB) - (distanceA < distanceB)
-            })
+            if(last_school !== undefined){
+                returnValue = last_school.value.split("$")
+                last_school_name = returnValue[0]
+                last_school_name_type = returnValue[1]
+                elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
+                var cLat = parseFloat(elementsSchool.lat),cLon = parseFloat(elementsSchool.lon);
+                school_list.sort(function(a,b){
+                    var [aXPos,aYPos] = [a.lon,a.lat]
+                    var [bXPos,bYPos] = [b.lon,b.lat]
+                    let [cXPos,cYPos] = [cLon,cLat]
+                    
+                    distanceA = Math.sqrt((cXPos-aXPos)**2+(cYPos-aYPos)**2)
+                    distanceB = Math.sqrt((cXPos-bXPos)**2+(cYPos-bYPos)**2)
+    
+                    return (distanceA > distanceB) - (distanceA < distanceB)
+                })
+            } else {
+                alert("You have selected distance sorting with no prior school selected, please don't.")
+            }
         }
     }
     schoolCount = 0
@@ -420,7 +426,7 @@ function create_school_list(type, indexOfElement) {
         listElement.onclick = function(){
             clicked[indexOfElement] = 0
             create_map()
-        if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1])){
+        if(!(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute")){
             document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
         }
     }
@@ -435,7 +441,7 @@ function add_filters(type, indexOfElement){
     if(filtersSelection != null){
         filtersSelection.remove()
     }
-    if(!(type == pathwayValues[0][0] || type == pathwayValues[0][1])){
+    if(!(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute")){
         filtersSelection = document.createElement("div")
 
         filtersSelection.id = "filtersSelection_" + indexOfElement;
@@ -479,7 +485,14 @@ function add_filters(type, indexOfElement){
         
             
         var programLabel = document.createElement("label");
-        programLabel.innerHTML = "Filter and Sort"
+        if(type==="High School"){
+            programLabel.innerHTML = "AP Courses"
+        } else if(type==="Company"){
+            programLabel.innerHTML = "Industry"
+        } else {
+            programLabel.innerHTML = "Programs"
+        }
+        
         programLabel.htmlFor = "programs";
         programLabel.setAttribute("class", "dropdown_label");
         radioButtonContainer = document.createElement("fieldset")
@@ -550,9 +563,6 @@ function add_filters(type, indexOfElement){
 }
 
 function create_map(onClick = 0) {
-
-    console.log("test")
-
     lastBehavior = onClick
     d3.selectAll(".mapElement").remove();
 
@@ -728,7 +738,7 @@ function projectionReset(lon=-69.14,lat=45.2){
 }
 
 function resize(){
-    height = window.innerHeight/2
+    height = window.innerHeight/4*3
     if(height<500)
         height = 500
     width = window.innerWidth/2
@@ -736,10 +746,12 @@ function resize(){
     menuCon = document.getElementById("menu_container")
     mapCon = document.getElementById("map_container")
     legendCon = document.getElementById("legend_container")
+    legendViz = document.getElementById("legend_visualization")
     mapCon.style.height = String(height)+"px"
     mapCon.style.width = String(height)+"px"
     menuCon.style.height = String(height)+"px"
     legendCon.style.height = String(height)+"px"
+    legendViz.style.height = String(height-110)+"px"
     create_map()
     create_legend()
 }
@@ -748,39 +760,14 @@ function typeToIndex(type){
     return pathwayValueNames.indexOf(type) + 1
 }
 
-// function zoom(d){
-//     if(d == 1){
-//         scale += 400
-//     } else {
-//         scale -= 400
-//     }
-//     let [lon,lat] = getCenter()
-//     create_map()
-// }
-
-// function getCenter(){
-//     let [lon,lat] = projection.invert(center)
-//     return [lon,lat]
-// }
-
-// function moveMap(dx,dy){
-//     const rotate = projection.rotate();
-//     const k = sensitivity / projection.scale();
-//     projection.rotate([
-//         rotate[0] - dx * k,
-//         rotate[1] + dy * k
-//     ]);
-//     create_map()
-// }
-
 function create_legend(){
     container = d3.select("#legend_visualization")
     container.html("")
-    legendHeight = height - 110
+    legendHeight = height
     svg = container.append('svg')
-        .attr('height', legendHeight)
+        .attr('height', 50*pathwayValueReversed.length)
         .attr('width', 250);
-
+        
     var elem = svg.selectAll("g")
         .data(placeHolder)
 
@@ -830,7 +817,7 @@ function create_legend(){
 
     var elemEnter = elem.enter()
         .append('g')
-        .attr("transform",function(d,i){return "translate(10," + (1+(legendHeight/pathwayValueNames.length)*i) + ")"})
+        .attr("transform",function(d,i){return "translate(10," + (1+50*i) + ")"})
         .on("click",onClick)
         .classed("legendBoxes",true)
 
@@ -881,6 +868,12 @@ function reset() {
     var bounds = mapPath.bounds(counties),
         topLeft = bounds[0],
         bottomRight = bounds[1];
+
+    topLeft[0] -= 50000
+    topLeft[1] -= 50000
+
+    bottomRight[0] += 50000
+    bottomRight[1] += 50000
 
     svgMap.attr("width", bottomRight[0] - topLeft[0])
         .attr("height", bottomRight[1] - topLeft[1])

@@ -61,6 +61,11 @@ footer{
     margin: 10px 2.5%;
 }
 
+#legend_visualization{
+    overflow-y: auto;
+    height: 350px;
+}
+
 .inner_box {
     min-width: 200px;
     max-width: 200px;
@@ -210,3 +215,4 @@ input[type="checkbox"]:checked+label {
 .no-select{
     user-select: none;
 }
+
