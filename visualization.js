@@ -506,7 +506,6 @@ function add_filters(type, indexOfElement){
 }
 
 function create_map(onClick = 0) {
-    console.log("test")
     lastBehavior = onClick
     d3.selectAll(".mapElement").remove();
 
