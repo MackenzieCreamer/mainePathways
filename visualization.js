@@ -38,9 +38,7 @@ d3.json("counties-10m.json").then(function (us) {
     counties = new Object({type:"FeatureCollection",features:counties.features.filter(d => d.id.slice(0, 2) === "23")})
 });
 
-
 window.onresize = resize;
-
 
 d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
     schools = includedSchools;
