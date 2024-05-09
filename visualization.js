@@ -527,8 +527,8 @@ function create_map(onClick = 0) {
         schoolsToVisualize.push(elementsSchools)
     }
     ordinalColor = d3.scaleOrdinal()
-        .domain(pathwayValueNames)
-        .range(d3.schemeCategory10)
+        .domain(["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"])
+        .range(["#a5cee3","#1f78b3","#b2de89","#339f2c","#fb9a99","#e3191b","#fcbf6f","#ff7f00","#45dee0","#3b6af9","#676767"])
 
     schoolsToPreview = []
     for(const name of pathwayValueNames){
