@@ -5,8 +5,8 @@ var alreadyInitialized = false;
 var pathwayValueNames,pathwayValueRanks,pathwayValues,pathwayValueReversed,placeHolder;
 var map,overlay,osmLayer,svgMap,gMap,mapTransform,mapPath,projectPoint,feature
 
-blockedLegends = []
-totalMenus = 0
+var blockedLegends = {}
+var totalMenus = 0
 var width,height;
 var center;
 var states, counties;
@@ -718,7 +718,7 @@ function initialize() {
 
     }
     delete_old_menus(0)
-    blockedLegends=[]
+    blockedLegends = {}
     if(document.getElementById("legend_selection").value==="visualizeClick"){
         create_menu(0, 0)
     }
@@ -800,13 +800,22 @@ function create_legend(){
                 }
             }
         } else {
-            if(blockedLegends.indexOf(parseInt(elementIndex)) === -1 ){
-                blockedLegends = []
-                for (const i of Array.from({length: elementIndex}, (_, i) => i + 1)) {
-                    selectedElement = d3.select("#legend_" + i)
-                    selectedElement.attr("fill","gainsboro")
-                    blockedLegends.push(i)
-                }
+            if(blockedLegends[elementIndex] === undefined){
+                
+                blockedLegends[elementIndex] = name
+                selectedElement = d3.select("#legend_" + elementIndex)
+                selectedElement.attr("fill","gainsboro")
+            } else {
+                delete blockedLegends[elementIndex]
+                selectedElement = d3.select("#legend_" + elementIndex)
+                selectedElement.attr("fill","transparent")
+            }
+            delete_old_menus(0)
+            var keys = Object.keys(blockedLegends);
+            keys.sort()
+            for (var i=0; i<keys.length; i++) { // now lets iterate in sort order
+                var key = keys[i];
+                var name = blockedLegends[key];
                 create_menu(totalMenus,0,name)
             }
         }
@@ -856,7 +865,7 @@ function selectionChange(){
     delete_old_menus(0)
     create_map()
     if(value==="menuCreation"){
-        blockedLegends=[]
+        blockedLegends = {}
     } else if(value==="visualizeClick"){
         create_menu(0, 0)
     }
