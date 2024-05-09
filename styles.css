@@ -12,6 +12,9 @@ header{
     background-color: #EDDCE1;
     display: flex;
     gap: 10px;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
 }
 
 footer{
@@ -54,16 +57,17 @@ footer{
 }
 
 #legend_container{
-    height: 100%;
     min-width: 250px;
     min-height: 500px;
     border: black solid 2px;
     margin: 10px 2.5%;
+    display: flex;
+    flex-direction: column;
 }
 
 #legend_visualization{
     overflow-y: auto;
-    height: 350px;
+    flex: 1;
 }
 
 .inner_box {
@@ -216,3 +220,50 @@ input[type="checkbox"]:checked+label {
     user-select: none;
 }
 
+#screen_block_for_options{
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#transparent_background{
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.445);
+}
+
+#dynamic_selector{
+    width: 500px;
+    height: 300px;
+    position: absolute;
+    left: calc(50% - 250px);
+    top: calc(calc(50% - 150px) - 44px);
+    background-color: white;
+    border: 4px black solid;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    text-align: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.no-margin-no-padding{
+    margin: 0;
+    padding: 0;
+}
+
+#dyanmic_options{
+    text-align: left;
+}
+
+#dyanmic_submission{
+    margin-top: 25px;
+    width: 50%;
+}
+
+.hidden{
+    display: none!important;
+}

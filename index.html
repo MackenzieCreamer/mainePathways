@@ -12,29 +12,65 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
 </head>
-<header></header>
+<header>
+    <button onclick="resetScreen()">Change Tailored Experience</button>
+</header>
 <body>
     <div id="webpage">
         <div id="full_viz_holder">
             <div id="legend_container">
-                <div class="selection_container" id="filter_selection_container">
-                    <select id="filter_selection" onchange="filterChange()">
-                        <option value="institution">Institution Legend</option>
-                        <option value="biolifeScience">Biolife Legend</option>
-                    </select>
-                </div>
-                <div id="legend_visualization"></div>
                 <div class="selection_container" id="legend_selection_container">
                     <select id="legend_selection" onchange="selectionChange()">
                         <option value="visualizeClick">Visualize Options</option>
                         <option value="menuCreation">Create Menus</option>
                     </select>
                 </div>
+                <div id="legend_visualization"></div>
             </div>
             <div id="map_container"></div>
             <div id="menu_container"></div>
         </div>
         <button class="visualize_path_button" id="test" type="button" onclick="create_map(1)">Visualize Path</button>
+    </div>
+    <div id="screen_block_for_options">
+        <div id="transparent_background"></div>
+        <div id="dynamic_selector">
+            <h3 class="no-margin-no-padding">Welcome to the Roux Educational Resource Map!</h3>
+            <p>For a more personalized experience, please select which of the following best fits your needs:</p>
+            <fieldset id="dyanmic_options">
+                <legend>I am a:</legend>
+              
+                <div>
+                  <input type="radio" id="parent" name="personType" value="parent"/>
+                  <label for="parent">parent looking for schools for my young student</label>
+                </div>
+              
+                <div>
+                  <input type="radio" id="earlyStudent" name="personType" value="earlyStudent" />
+                  <label for="earlyStudent">young student interested in K-12 schools</label>
+                </div>
+              
+                <div>
+                  <input type="radio" id="lateStudent" name="personType" value="lateStudent" />
+                  <label for="lateStudent">older student who is looking towards college</label>
+                </div>
+                <div>
+                    <input type="radio" id="collegeStudent" name="personType" value="collegeStudent" />
+                    <label for="collegeStudent">college student who is looking towards post graduate opportunities</label>
+                </div>
+                <div>
+                    <input type="radio" id="business" name="personType" value="business" />
+                    <label for="business">business looking for schools that I can get talent from</label>
+                </div>
+                <div>
+                    <input type="radio" id="everyone" name="personType" value="everyone" />
+                    <label for="everyone">person just interested in seeing all the education resources of Maine!</label>
+                </div>
+            </fieldset>
+            <button id="dyanmic_submission" onclick="initialize()">
+                Let's go!
+            </button>
+        </div>
     </div>
 </body>
 <footer></footer>

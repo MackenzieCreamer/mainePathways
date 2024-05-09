@@ -1,23 +1,17 @@
 document.getElementById("legend_selection").value = "visualizeClick"
 
-pathwayValueNames = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
-pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+var alreadyInitialized = false;
 
-pathwayValueReversed = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
-// Research Institutes
+var pathwayValueNames,pathwayValueRanks,pathwayValues,pathwayValueReversed,placeHolder;
+var map,overlay,osmLayer,svgMap,gMap,mapTransform,mapPath,projectPoint,feature
+
 blockedLegends = []
-
-pathwayValues = [pathwayValueNames, pathwayValueRanks]
 totalMenus = 0
 var width,height;
 var center;
 var states, counties;
 var schools, possiblePrograms;
-var scale = 5500, isDown=false;
-const sensitivity = 75;
 var previousCoordinates;
-
-placeHolder = pathwayValueReversed.reverse()
 
 var lastBehavior = 0;
 hovering = 0;
@@ -43,40 +37,6 @@ d3.json("counties-10m.json").then(function (us) {
     nation = topojson.feature(us, us.objects.nation);
     counties = new Object({type:"FeatureCollection",features:counties.features.filter(d => d.id.slice(0, 2) === "23")})
 });
-
-
-var map = new L.Map("map_container", {center: [45.2, -69.14], zoom: 7})
-
-let osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map); 
-    
-//initialize svg to add to map
-L.svg({clickable:true}).addTo(map) // we have to make the svg layer clickable 
-//Create selection using D3
-const overlay = d3.select(map.getPanes().overlayPane)
-
-  
-var svgMap = d3.select(map.getPanes().overlayPane).append("svg"),
-gMap = svgMap.append("g").attr("class", "leaflet-zoom-hide");
-
-const projectPoint = function(x, y) {
-    const point = map.latLngToLayerPoint(new L.LatLng(y, x))
-    this.stream.point(point.x, point.y)
-}
-
-var mapTransform = d3.geoTransform({point: projectPoint}),
-mapPath = d3.geoPath().projection(mapTransform);
-
-var feature;
-sleep(500).then(() => { 
-    feature = gMap.selectAll("path")
-     .data(counties.features)
-    .enter().append("path");
-    reset();
-});
-map.on("zoomend", reset);
-
 
 
 window.onresize = resize;
@@ -724,10 +684,44 @@ function sleep(ms) {
 }
 
 function initialize() {
-    resize()
-    create_menu(0, 0)
+    arraySetup()
+    d3.select(".leaflet-map-pane").classed("hidden",false)
+
+    if(!alreadyInitialized){
+        alreadyInitialized = true
+        map = new L.Map("map_container", {center: [45.2, -69.14], zoom: 7})
+
+        osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map); 
+            
+        //initialize svg to add to map
+        L.svg({clickable:true}).addTo(map) // we have to make the svg layer clickable 
+        //Create selection using D3
+        overlay = d3.select(map.getPanes().overlayPane)
+    
+        
+        svgMap = d3.select(map.getPanes().overlayPane).append("svg"),
+        gMap = svgMap.append("g").attr("class", "leaflet-zoom-hide");
+    
+        projectPoint = function(x, y) {
+            const point = map.latLngToLayerPoint(new L.LatLng(y, x))
+            this.stream.point(point.x, point.y)
+        }
+    
+    
+        mapTransform = d3.geoTransform({point: projectPoint}),
+        mapPath = d3.geoPath().projection(mapTransform);
+        map.on("zoomend", reset);
+    
+    
+        feature = gMap.selectAll("path")
+        .data(counties.features)
+        .enter().append("path");
+        reset();
+    }
 }
-sleep(500).then(() => { initialize(); });
+    
 
 function projectionReset(lon=-69.14,lat=45.2){
     projection = d3.geoTransverseMercator()
@@ -886,4 +880,45 @@ function reset() {
         .attr("class","county");
 
     create_map();
+}
+
+function arraySetup(){
+    userExperience = document.querySelector('input[name="personType"]:checked').value
+    d3.select("#screen_block_for_options").classed("hidden",true)
+    
+    pathwayValueNames = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
+    pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    pathwayValueReversed = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
+
+    var start,end;
+
+    if(userExperience === "parent" || userExperience === "earlyStudent"){
+        start = 0
+        end = 5
+    } else if(userExperience === "lateStudent"){
+        start = 2
+        end = 7
+    } else if(userExperience === "collegeStudent" || userExperience === "business"){
+        start = 5
+        end = 11
+    } else if(userExperience === "everyone"){
+        start = 0
+        end = 11
+    }
+
+    pathwayValueNames = pathwayValueNames.slice(start,end)
+    pathwayValueRanks = pathwayValueRanks.slice(start,end)
+    pathwayValueReversed = pathwayValueReversed.slice(start,end)
+    
+    
+    pathwayValues = [pathwayValueNames, pathwayValueRanks]
+
+    placeHolder = pathwayValueReversed.reverse()
+    resize()
+    create_menu(0, 0)
+}
+
+function resetScreen(){
+    d3.select(".leaflet-map-pane").classed("hidden",true)
+    d3.select("#screen_block_for_options").classed("hidden",false)
 }
