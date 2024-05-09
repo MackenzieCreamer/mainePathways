@@ -778,7 +778,8 @@ function create_legend(){
         }
         selectedElement = d3.select("#"+this.firstChild.id)
         elementID = this.firstChild.id
-        elementIndex = elementID.substring(elementID.length-1)
+        console.log(elementID)
+        elementIndex = elementID.split("_")[1]
         if(document.getElementById("legend_selection").value==="visualizeClick"){
             if(display_legend_elements[name]==="all"){
                 display_legend_elements[name]="none"
