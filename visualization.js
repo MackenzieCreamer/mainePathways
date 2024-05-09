@@ -714,9 +714,15 @@ function initialize() {
     
     
         feature = gMap.selectAll("path")
-        .data(counties.features)
-        .enter().append("path");
+            .data(counties.features)
+            .enter().append("path");
         reset();
+
+    }
+    delete_old_menus(0)
+    blockedLegends=[]
+    if(document.getElementById("legend_selection").value==="visualizeClick"){
+        create_menu(0, 0)
     }
 }
     
@@ -756,6 +762,9 @@ function create_legend(){
     container = d3.select("#legend_visualization")
     container.html("")
     legendHeight = height
+    if(typeof svg !== "undefined"){
+        svg = undefined
+    }
     svg = container.append('svg')
         .attr('height', 50*pathwayValueReversed.length)
         .attr('width', 250);
@@ -913,7 +922,6 @@ function arraySetup(){
 
     placeHolder = pathwayValueReversed.reverse()
     resize()
-    create_menu(0, 0)
 }
 
 function resetScreen(){
