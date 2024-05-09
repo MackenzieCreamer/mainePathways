@@ -15,21 +15,10 @@ var previousCoordinates;
 
 var lastBehavior = 0;
 hovering = 0;
-clicked = [];
+var clicked = [];
 
 // Make an array of nodes to display of lower opacity
-var display_legend_elements = {"Elementary School":"none",
-    "Middle School":"none",
-    "High School":"none",
-    "HS STEM Program":"none",
-    "CTE":"none",
-    "Community College":"none",
-    "University/Colleges":"none",
-    "Undergrad STEM Program":"none",
-    "Graduate":"none",
-    "Research Institute":"none",
-    "Company":"none"
-}
+var display_legend_elements;
 
 d3.json("counties-10m.json").then(function (us) {
     states = topojson.feature(us, us.objects.states, (a, b) => a !== b)
@@ -119,47 +108,46 @@ function create_menu(indexOfElement, startingCutoff,type="") {
             buttonToVisualizeAll.remove()
         }
     
-            var buttonToVisualizeAll = document.createElement("div")
-            buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
-            buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
-            buttonToVisualizeAll.onclick = function() {
-                this.style.backgroundColor = "rgb(126, 126, 126)";
-                // Toggle button goes here, automatically turns off when something else is clicked
-                selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
-                if(clicked[indexOfElement] == 0) {
-                    clicked[indexOfElement] = 1
-                    listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
-                    listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
-                    
-                    schoolNames = []
-                    
-                    let schoolsToVisualize = []
-                    let schoolType = null
-                    for (const checkbox of listSelected) {
-                        returnValue = document.getElementById(checkbox).value.split("$")
-                        schoolNames.push(returnValue[0])
-                        schoolType = returnValue[1]
-                    }
-                    elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
-                    schoolsToVisualize.push(elementsSchools)
-                    
-                    display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
-                    selectedElement.attr("fill","gainsboro")
-                } else {
-                    clicked[indexOfElement] = 0
-                    display_legend_elements[schoolTypeSelect.value] = "none"
-                    this.style.backgroundColor = "gainsboro";
-                    selectedElement.attr("fill","transparent")
+        var buttonToVisualizeAll = document.createElement("div")
+        buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
+        buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
+        buttonToVisualizeAll.onclick = function() {
+            this.style.backgroundColor = "rgb(126, 126, 126)";
+            // Toggle button goes here, automatically turns off when something else is clicked
+            selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
+            if(clicked[indexOfElement] == 0) {
+                clicked[indexOfElement] = 1
+                listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
+                listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
+                
+                schoolNames = []
+                
+                let schoolsToVisualize = []
+                let schoolType = null
+                for (const checkbox of listSelected) {
+                    returnValue = document.getElementById(checkbox).value.split("$")
+                    schoolNames.push(returnValue[0])
+                    schoolType = returnValue[1]
                 }
-                create_map()
+                elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
+                schoolsToVisualize.push(elementsSchools)
+                
+                display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
+                selectedElement.attr("fill","gainsboro")
+            } else {
+                clicked[indexOfElement] = 0
+                display_legend_elements[schoolTypeSelect.value] = "none"
+                this.style.backgroundColor = "gainsboro";
             }
-            
-            buttonToVisualizeAll.innerHTML = "Visualize All"
+            create_map()
+        }
+        
+        buttonToVisualizeAll.innerHTML = "Visualize All"
 
-            currentElement.appendChild(buttonToVisualizeAll)
-            clicked = clicked.slice(0,newCutoffIndex)
-            clicked[indexOfElement] = 0
-            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
+        currentElement.appendChild(buttonToVisualizeAll)
+        clicked = clicked.slice(0,newCutoffIndex)
+        clicked[indexOfElement] = 0
+        document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
     }
 
     schoolTypeSelect.onchange = function () {
@@ -210,10 +198,7 @@ function create_menu(indexOfElement, startingCutoff,type="") {
                 clicked[indexOfElement] = 0
                 display_legend_elements[schoolTypeSelect.value] = "none"
                 this.style.backgroundColor = "gainsboro";
-
-                if(document.getElementById("legend_selection").value!="menuCreation"){
-                    selectedElement.attr("fill","transparent")
-                }
+                selectedElement.attr("fill","transparent")
             }
             create_map()
         }
@@ -225,11 +210,11 @@ function create_menu(indexOfElement, startingCutoff,type="") {
         clicked[indexOfElement] = 0
         document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
 
-    delete_old_menus(nextElement)
+        delete_old_menus(nextElement)
 
-    if(document.getElementById("legend_selection").value==="visualizeClick")
-        create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
-    create_map()
+        if(document.getElementById("legend_selection").value==="visualizeClick")
+            create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
+        create_map()
     }
 }
 
@@ -521,6 +506,7 @@ function add_filters(type, indexOfElement){
 }
 
 function create_map(onClick = 0) {
+    console.log("test")
     lastBehavior = onClick
     d3.selectAll(".mapElement").remove();
 
@@ -682,9 +668,22 @@ function sleep(ms) {
 }
 
 function initialize() {
+    display_legend_elements = {"Elementary School":"none",
+        "Middle School":"none",
+        "High School":"none",
+        "HS STEM Program":"none",
+        "CTE":"none",
+        "Community College":"none",
+        "University/Colleges":"none",
+        "Undergrad STEM Program":"none",
+        "Graduate":"none",
+        "Research Institute":"none",
+        "Company":"none"
+    }
+
     arraySetup()
     d3.select(".leaflet-map-pane").classed("hidden",false)
-
+    
     if(!alreadyInitialized){
         alreadyInitialized = true
         map = new L.Map("map_container", {center: [45.2, -69.14], zoom: 7})
@@ -725,7 +724,6 @@ function initialize() {
         create_menu(0, 0)
     }
 }
-    
 
 function projectionReset(lon=-69.14,lat=45.2){
     projection = d3.geoTransverseMercator()
