@@ -522,7 +522,6 @@ function create_map(onClick = 0) {
     .style("z-index",9999)
 
     var mouseover = function(d) {
-        console.log("test")
         tooltip.style("opacity", 1)
         }
     var mousemove = function(d,school) {
@@ -944,3 +943,9 @@ function resetScreen(){
     d3.select("#screen_block_for_options").classed("hidden",false)
 }
 
+const schoolSelectBackground = document.getElementById("school_background")
+
+schoolSelectBackground.addEventListener("click",(event)=>{
+    console.log("test")
+    d3.select("#screen_block_for_school").classed("hidden",true)
+})
