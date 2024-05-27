@@ -509,6 +509,40 @@ function create_map(onClick = 0) {
     lastBehavior = onClick
     d3.selectAll(".mapElement").remove();
 
+    var tooltip = d3.select("body")
+    .append("div")
+    .style("position", "absolute")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "2px")
+    .style("border-radius", "5px")
+    .style("padding", "5px")
+    .style("z-index",9999)
+
+    var mouseover = function(d) {
+        console.log("test")
+        tooltip.style("opacity", 1)
+        }
+    var mousemove = function(d,school) {
+        components = school.address.split(',')
+        addressBreakdown = ""
+        if(components.length > 3){
+            addressBreakdown = components[0] + "<br>" + components[2] + ", " + components[3]
+        } else {
+            addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
+        }
+        fullHTML = school.name + "<br>" + addressBreakdown
+
+        tooltip.html(fullHTML)
+            .style("top", (d.clientY+25)+"px")
+            .style("left",(d.clientX+25)+"px")
+        }
+    var mouseleave = function(d) {
+        tooltip.style("opacity", 0)
+    }
+
     const schoolsToVisualize = []
     bounds = totalMenus
     if(document.getElementById("legend_selection").value==="visualizeClick")
@@ -604,40 +638,6 @@ function create_map(onClick = 0) {
                 .attr("stroke", d => ordinalColor(d[0]))
                 .attr("stroke-width", 6)
                 .attr("class","mapElement")    
-        }
-
-        var tooltip = d3.select("body")
-            .append("div")
-            .style("position", "absolute")
-            .style("opacity", 0)
-            .attr("class", "tooltip")
-            .style("background-color", "white")
-            .style("border", "solid")
-            .style("border-width", "2px")
-            .style("border-radius", "5px")
-            .style("padding", "5px")
-            .style("z-index",9999)
-
-        var mouseover = function(d) {
-            console.log("test")
-            tooltip.style("opacity", 1)
-            }
-        var mousemove = function(d,school) {
-            components = school.address.split(',')
-            addressBreakdown = ""
-            if(components.length > 3){
-                addressBreakdown = components[0] + "<br>" + components[2] + ", " + components[3]
-            } else {
-                addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
-            }
-            fullHTML = school.name + "<br>" + addressBreakdown
-
-            tooltip.html(fullHTML)
-                .style("top", (d.clientY+15)+"px")
-                .style("left",(d.clientX+15)+"px")
-            }
-        var mouseleave = function(d) {
-            tooltip.style("opacity", 0)
         }
 
         if(schoolsToVisualize.length!=0){
