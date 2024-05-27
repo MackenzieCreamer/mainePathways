@@ -559,6 +559,9 @@ function create_map(onClick = 0) {
                 .attr("style", "outline: 1px solid black; border-radius:100px;")
                 .attr("opacity","50%")
                 .attr("class","mapElement")
+                .on("mouseover", mouseover)
+                .on("mousemove", mousemove)
+                .on("mouseleave", mouseleave)
     }
     
 
@@ -603,7 +606,7 @@ function create_map(onClick = 0) {
                 .attr("class","mapElement")    
         }
 
-        var tooltip = d3.select("#map_container")
+        var tooltip = d3.select("body")
             .append("div")
             .style("position", "absolute")
             .style("opacity", 0)
@@ -613,8 +616,10 @@ function create_map(onClick = 0) {
             .style("border-width", "2px")
             .style("border-radius", "5px")
             .style("padding", "5px")
+            .style("z-index",9999)
 
         var mouseover = function(d) {
+            console.log("test")
             tooltip.style("opacity", 1)
             }
         var mousemove = function(d,school) {
@@ -628,8 +633,8 @@ function create_map(onClick = 0) {
             fullHTML = school.name + "<br>" + addressBreakdown
 
             tooltip.html(fullHTML)
-                .style("top", (d.pageY+10)+"px")
-                .style("left",(d.pageX+10)+"px")
+                .style("top", (d.clientY+15)+"px")
+                .style("left",(d.clientX+15)+"px")
             }
         var mouseleave = function(d) {
             tooltip.style("opacity", 0)
@@ -778,7 +783,6 @@ function create_legend(){
         }
         selectedElement = d3.select("#"+this.firstChild.id)
         elementID = this.firstChild.id
-        console.log(elementID)
         elementIndex = elementID.split("_")[1]
         if(document.getElementById("legend_selection").value==="visualizeClick"){
             if(display_legend_elements[name]==="all"){
@@ -932,6 +936,5 @@ function arraySetup(){
 }
 
 function resetScreen(){
-    d3.select(".leaflet-map-pane").classed("hidden",true)
     d3.select("#screen_block_for_options").classed("hidden",false)
 }
