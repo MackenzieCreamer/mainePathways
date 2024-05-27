@@ -542,6 +542,9 @@ function create_map(onClick = 0) {
     var mouseleave = function(d) {
         tooltip.style("opacity", 0)
     }
+    var onclick = function(d,school){
+        d3.select("#screen_block_for_school").classed("hidden",false)
+    }
 
     const schoolsToVisualize = []
     bounds = totalMenus
@@ -596,6 +599,7 @@ function create_map(onClick = 0) {
                 .on("mouseover", mouseover)
                 .on("mousemove", mousemove)
                 .on("mouseleave", mouseleave)
+                .on("click",onclick)
     }
     
 
@@ -657,6 +661,7 @@ function create_map(onClick = 0) {
                     .on("mouseover", mouseover)
                     .on("mousemove", mousemove)
                     .on("mouseleave", mouseleave)
+                    .on("click",onclick)
         }
 
         
@@ -938,3 +943,4 @@ function arraySetup(){
 function resetScreen(){
     d3.select("#screen_block_for_options").classed("hidden",false)
 }
+
