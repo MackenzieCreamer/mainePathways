@@ -277,3 +277,76 @@ input[type="checkbox"]:checked+label {
 .hidden{
     display: none!important;
 }
+
+.button {
+    border-radius: 5px;
+    padding: 3px;
+    font-size: medium;
+    font-family: 'Times New Roman', Times, serif;
+    border: 1px solid #000;
+    color: black;
+    text-decoration: none;
+    background-color: gray;
+}
+
+#school_menu_popup{
+    width: 40%;
+    height: 30%;
+    position: absolute;
+    top: calc(50% - 15%);
+    left: calc(50% - 20%);
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 3px black solid;
+}
+
+#school_menu_header{
+    height: 30px;
+    width: 100%;
+    background-color: gray;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid black;
+}
+
+#full_table{
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-height: calc(100% - 40px);
+    flex: 1;
+}
+
+.table_column{
+    display: flex;
+    flex-direction: column;
+    width: calc(50% - 10px);
+    height: 100%;
+    max-height: 100%;
+    margin: 5px;
+    gap: 1%;
+}
+
+.table_row{
+    height: 33%;
+    border: 1px black solid;
+    padding: 5px;
+}
+
+#right_column{
+    height: 100%;
+    max-height: 100%;
+    border: black solid 1px;
+}
+
+#school_link{
+    padding: 5px;
+    overflow: auto;
+}
+
+#programs_value{
+    overflow: auto;
+}

@@ -109,7 +109,7 @@ function create_menu(indexOfElement, startingCutoff,type="") {
         }
     
         var buttonToVisualizeAll = document.createElement("div")
-        buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
+        buttonToVisualizeAll.setAttribute("class","visualizeAllButton button")
         buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
         buttonToVisualizeAll.onclick = function() {
             this.style.backgroundColor = "rgb(126, 126, 126)";
@@ -543,6 +543,11 @@ function create_map(onClick = 0) {
     }
     var onclick = function(d,school){
         d3.select("#screen_block_for_school").classed("hidden",false)
+        document.getElementById("name_value").innerHTML = school.name
+        document.getElementById("location_value").innerHTML = school.address
+        document.getElementById("link_value").innerHTML = school.link
+        document.getElementById("programs_value").innerHTML = school.program
+        console.log(school)
     }
 
     const schoolsToVisualize = []
@@ -578,7 +583,7 @@ function create_map(onClick = 0) {
             schoolsToPreview.push(previewSchoolList[0])
         }
     }
-    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
+    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng), program:d.program, link:d.link }))
 
     if(schoolsToPreview[0]!=undefined){
         previewVisualizations = gMap.append("g")
@@ -946,6 +951,5 @@ function resetScreen(){
 const schoolSelectBackground = document.getElementById("school_background")
 
 schoolSelectBackground.addEventListener("click",(event)=>{
-    console.log("test")
     d3.select("#screen_block_for_school").classed("hidden",true)
 })

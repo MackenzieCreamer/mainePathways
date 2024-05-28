@@ -13,7 +13,8 @@
         crossorigin=""></script>
 </head>
 <header>
-    <button onclick="resetScreen()">Change Tailored Experience</button>
+    <button class="button" onclick="resetScreen()">Change Tailored Experience</button>
+    <a class="button" href="https://docs.google.com/forms/d/10ENuP_Uo9CU4UqrIw6GE3rWsb295XJrahJ0zZVsWtjQ/edit" target="blank">Missing Institution? Report it here</a>
 </header>
 <body>
     <div id="webpage">
@@ -30,7 +31,7 @@
             <div id="map_container"></div>
             <div id="menu_container"></div>
         </div>
-        <button class="visualize_path_button" id="test" type="button" onclick="create_map(1)">Visualize Path</button>
+        <button class="visualize_path_button button" id="test" type="button" onclick="create_map(1)">Visualize Path</button>
     </div>
     <div id="screen_block_for_options">
         <div class="transparent_background"></div>
@@ -67,13 +68,38 @@
                     <label for="everyone">person just interested in seeing all the education resources of Maine!</label>
                 </div>
             </fieldset>
-            <button id="dyanmic_submission" onclick="initialize()">
+            <button class="button" id="dyanmic_submission" onclick="initialize()">
                 Let's go!
             </button>
         </div>
     </div>
     <div id="screen_block_for_school" class="hidden">
         <div id="school_background" class="transparent_background"></div>
+        <div id="school_menu_popup">
+            <h3 id="school_menu_header" class="no-margin-no-padding">Information on Selected School!</h3>
+            <div id="full_table">
+                <div class="table_column">
+                    <div class="table_row" id="school_name">
+                        Name
+                        <div class="table_left_element" id="name_value"></div>
+                    </div>
+                    <div class="table_row" id="school_location">
+                        Location
+                        <div class="table_left_element" id="location_value"></div>
+                    </div>
+                    <div class="table_row" id="school_link">
+                        External Link (If applicable)
+                        <div class="table_left_element" id="link_value"></div>
+                    </div>
+                </div>
+                <div class="table_column" id="right_column">
+                    <div id="school_link">
+                        Programs (If applicable)
+                        <div class="table_right_element" id="programs_value"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 <footer></footer>
