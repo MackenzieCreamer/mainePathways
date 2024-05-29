@@ -1,10 +1,14 @@
+// To deal with annoying artificating from caching, we set the menu option for the legend to "visualizeClick" everytime to avoid things breaking
 document.getElementById("legend_selection").value = "visualizeClick"
 
+// Check to see if the web application has already been started, impacts actions such as creating the map
 var alreadyInitialized = false;
 
+// A bunch of global variables that hold information on the map and any projections for the purposes of overlaying info on the map from other functions
 var pathwayValueNames,pathwayValueRanks,pathwayValues,pathwayValueReversed,placeHolder;
 var map,overlay,osmLayer,svgMap,gMap,mapTransform,mapPath,projectPoint,feature
 
+// Information pertaining to the menus, width/height of the map, outlines of map features, and more
 var blockedLegends = {}
 var totalMenus = 0
 var width,height;
@@ -13,6 +17,7 @@ var states, counties;
 var schools, possiblePrograms;
 var previousCoordinates;
 
+// Variables that handle user interaction with the map
 var lastBehavior = 0;
 hovering = 0;
 var clicked = [];
@@ -20,21 +25,28 @@ var clicked = [];
 // Make an array of nodes to display of lower opacity
 var display_legend_elements;
 
+// Personal preference here, but I immensely dislike having to place all necessary functions and equations within asynchronous functions, so I instnantiate them here
+// ------------------------------ START OF READING IN OF FILES FOR ASYNC FUNCTIONS ------------------------------
 d3.json("counties-10m.json").then(function (us) {
+    // Mostly not necessary with the exception of the county and state lines, since leaflet handles a lot of borders for us.
+    // Regardless, we read all these in anyway since we can make use out of them, should we need them.
     states = topojson.feature(us, us.objects.states, (a, b) => a !== b)
     counties = topojson.feature(us, us.objects.counties, (a, b) => a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0))
     nation = topojson.feature(us, us.objects.nation);
     counties = new Object({type:"FeatureCollection",features:counties.features.filter(d => d.id.slice(0, 2) === "23")})
 });
 
-window.onresize = resize;
-
 d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
+    // The meat and potatoes of the whole program, where we get the information for every institution in our list which we call "schools"
+    // Poorly named due to being an artifact of when the program was first created, but I digress.
     schools = includedSchools;
-    // name,address,lat,lon,type,program,link
     schools = schools.map(d=> {
+        // We need to handle the coordinates in the way that OSM/Leaflet handles them, so we have a formatting function that is specifically associated with
+        // handling this information. By passing in strings of those coordinates into this function, it formats them how OSM/leaflet wants them and subsequently won't
+        // break on running with incorrectly formatted coordinates. THIS IS IMPORTANT TO REMEMBER.
         const coordinates = [d.lon,d.lat];
         return {
+            // Fancy way of keeping all the old information (...d)
             ...d,
             latlng: new L.LatLng(coordinates[1],coordinates[0])
         }
@@ -42,27 +54,45 @@ d3.csv("simplifiedSchools.csv").then(function (includedSchools) {
 });
 
 d3.csv("possiblePrograms.csv").then(function (programs) {
+    //Important for dropdowns and filters
     possiblePrograms = programs;
 });
+// ------------------------------ END OF READING IN OF FILES FOR ASYNC FUNCTIONS ------------------------------
+
+// Despite not using the react or node.js frameworks, we want a little reactivity from the website, so I custom programmed a resize function which is specified later in the code.
+window.onresize = resize;
+
 
 function create_menu(indexOfElement, startingCutoff,type="") {
+    //PRE: indexOfElement is a numeric element where you intend to create a new element
+    //PRE: startingCutoff is the numeric index of the institution you intend to be associated with the dropdown menu at the top
+    //PRE: type is a string associated with the actual type for the menu. If it is blank, no type was assigned to the menu
+    //POST: Creates a menu at the specific location containing only certain dropdown elements based on input.
+    
+    // Other areas of the code, rely on knowing the total number of menus and which elements of the menu have been clicked
     totalMenus += 1
     clicked.push(0)
 
+    // Create the actual menu element to be added
     const currentElement = document.createElement("div")
     currentElement.setAttribute("id", "typesMenu_" + indexOfElement)
     currentElement.setAttribute("class", "inner_box")
 
+    // Gets/adds the element we will be adding the menu element to
     const menuBox = document.getElementById("menu_container")
-
     menuBox.append(currentElement)
 
+    // Once we have added the element, we start to populate the new menu box
+    // Here, we are creating the dropdown menu for the associated menu
     var schoolTypeSelect = document.createElement("select");
     schoolTypeSelect.name = "schoolTypesDropdown";
     schoolTypeSelect.id = "typesDropdown" + indexOfElement;
     schoolTypeSelect.setAttribute("class", "types_dropdown")
 
+    // If the argument for type has an institution, it's always going to have just one option, preventing it from being changed which matters later in the program
+    // If the dropdown does not have a type, it will always have all menu options up to the starting cutoff, aka the institution type
     if(type===""){
+        // For every element from the institution starting cutoff and beyond, we append an option element, set its value, and set its text.
         for (const elemType of pathwayValues[0].slice(startingCutoff, pathwayValues[0].length)) {
             var schoolOption = document.createElement("option");
             schoolOption.value = elemType;
@@ -70,17 +100,20 @@ function create_menu(indexOfElement, startingCutoff,type="") {
             schoolTypeSelect.appendChild(schoolOption);
         }
     } else {
+        // Create and append only one option, which is the type value that was passed earlier
         var schoolOption = document.createElement("option");
         schoolOption.value = type;
         schoolOption.text = type;
         schoolTypeSelect.appendChild(schoolOption);
     }
 
+    // Now that we've created the dropdown, we create the label to go with it.
     var typeLabel = document.createElement("label");
     typeLabel.innerHTML = "Type of Institution: "
     typeLabel.htmlFor = "institutions";
     typeLabel.setAttribute("class", "dropdown_label");
 
+    // Its important that as we're peacing everything together, that we give it a unique ID for the menu it represents, in case we need to delete the menu
     headerInfo = document.createElement("div")
     headerInfo.setAttribute("id","header_"+indexOfElement)
     headerInfo.setAttribute("class","options-header")
@@ -88,158 +121,224 @@ function create_menu(indexOfElement, startingCutoff,type="") {
     typeLabel.appendChild(schoolTypeSelect)
     headerInfo.appendChild(typeLabel)
 
+    //If we already have a type associated, we make sure that the dropdown isn't blank.
     currentElement.appendChild(headerInfo);
     schoolTypeSelect.value = type
+
+    // Now that we've created the header, we need to add filters (if applicable) and add the menu features.
     if(schoolTypeSelect.value != ""){
+        // Assuming that the school type is not null, we need to add filters immediately. 
         add_filters(schoolTypeSelect.value,indexOfElement)
 
+        // When we're creating a dropdown menu, we need to get the associated value to ensure it slots into the correct sorted order of institutions.
         pathwayNameIndex = pathwayValues[0].indexOf(schoolTypeSelect.value)
-
         valueRank = pathwayValues[1][pathwayNameIndex]
-
         newCutoffIndex = pathwayValues[1].indexOf(valueRank, 0)
 
-        nextElement = indexOfElement + 1
-
+        // Now we create the school list with all the associated schools for the specific type that was provided.
         create_school_list(schoolTypeSelect.value, indexOfElement)
-
-        var buttonToVisualizeAll = document.getElementById("all_button_" + indexOfElement);
-        if (buttonToVisualizeAll != null) {
-            buttonToVisualizeAll.remove()
-        }
     
+        // At the bottom of each menu there needs to be a button which can be used to toggle on/off map locations relative to whats in the menu list.
+        // We create that button here
         var buttonToVisualizeAll = document.createElement("div")
         buttonToVisualizeAll.setAttribute("class","visualizeAllButton button")
         buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
+
+        // When clicked, the button should go gray and show all the schools listed in the school list. These are formatted differently to be identifiable, so extra work is necessary
         buttonToVisualizeAll.onclick = function() {
             this.style.backgroundColor = "rgb(126, 126, 126)";
-            // Toggle button goes here, automatically turns off when something else is clicked
+
+            // Everything is 0 indexed, so its easier to just add one to everything to accomodate how certain code structure is written.
             selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
+
+            // Making sure that the button isn't already clicked when we go to click it. If it is, just hides the displayed map elements instead of showing them again.
             if(clicked[indexOfElement] == 0) {
                 clicked[indexOfElement] = 1
+
+                // Here we get all the elements from the list, note that they don't have checkboxes but are themselves checkboxes, in that clicking on them performs behavior similar to a checkbox. 
                 listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
                 listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
                 
+                // List of schools we're going to have be visualized, but first we get all the school names and types
                 schoolNames = []
-                
                 let schoolsToVisualize = []
                 let schoolType = null
                 for (const checkbox of listSelected) {
+                    // Due to the formatting to ensure that every ID on the page was unique, we had to add the type to all menu list elements.
+                    // Formatting is <name>$<type> for each ID that is read in from these checkboxes.
                     returnValue = document.getElementById(checkbox).value.split("$")
                     schoolNames.push(returnValue[0])
                     schoolType = returnValue[1]
                 }
+
+                // Now that we've identified all the schools and gotten their names, we can reference the full list of schools and only take those which match in both name and type
                 elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
                 schoolsToVisualize.push(elementsSchools)
                 
+                // To centralize the processing of schools, we add all schools that we plan to visualize here and then visualize them elsewhere.
                 display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
+                
+                // Indicates that the button has been clicked 
                 selectedElement.attr("fill","gainsboro")
             } else {
+                //Reset the clicked array element, make it so no elements display in external processing, and reset the color
                 clicked[indexOfElement] = 0
                 display_legend_elements[schoolTypeSelect.value] = "none"
                 this.style.backgroundColor = "gainsboro";
             }
+            // Make sure that any changes made from the above code take place.
             create_map()
         }
         
+        //Finish the creation of the button by giving it text and adding it to the menu
         buttonToVisualizeAll.innerHTML = "Visualize All"
-
         currentElement.appendChild(buttonToVisualizeAll)
-        clicked = clicked.slice(0,newCutoffIndex)
+
+        // When a new menu is created, its important to set the button to be the right color, as well as initializing the value of the 
+        // clicked argument to 0.
         clicked[indexOfElement] = 0
         document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
     }
 
+    // If there are multiple options for the institution selection, by selecting a new one it removes all subsequent menus.
     schoolTypeSelect.onchange = function () {
+        
+        // Assuming that the school type is not null, we need to add filters immediately. 
         add_filters(schoolTypeSelect.value,indexOfElement)
 
+        // When we're creating a dropdown menu, we need to get the associated value to ensure it slots into the correct sorted order of institutions.
         pathwayNameIndex = pathwayValues[0].indexOf(schoolTypeSelect.value)
-
         valueRank = pathwayValues[1][pathwayNameIndex]
-
         newCutoffIndex = pathwayValues[1].indexOf(valueRank, 0)
-
         nextElement = indexOfElement + 1
 
+        // Now we create the school list with all the associated schools for the specific type that was provided.
         create_school_list(schoolTypeSelect.value, indexOfElement)
 
+        // Here we are checking to see if the button exists already. This is because when we are adding menus, if we attempt to change the current menu the button
+        // will actually stay. We don't want this, so we check if the button (basically the menu itself) already exists. If it does, we get rid of the button.
         var buttonToVisualizeAll = document.getElementById("all_button_" + indexOfElement);
         if (buttonToVisualizeAll != null) {
             buttonToVisualizeAll.remove()
         }
     
+        // At the bottom of each menu there needs to be a button which can be used to toggle on/off map locations relative to whats in the menu list.
+        // We create that button here
         var buttonToVisualizeAll = document.createElement("div")
-        buttonToVisualizeAll.setAttribute("class","visualizeAllButton")
+        buttonToVisualizeAll.setAttribute("class","visualizeAllButton button")
         buttonToVisualizeAll.setAttribute("id","all_button_" + indexOfElement)
+
+        // When clicked, the button should go gray and show all the schools listed in the school list. These are formatted differently to be identifiable, so extra work is necessary
         buttonToVisualizeAll.onclick = function() {
+            //Set the color of the button to the correct, light gray color
             this.style.backgroundColor = "rgb(126, 126, 126)";
-            // Toggle button goes here, automatically turns off when something else is clicked
+
+            // Everything is 0 indexed, so its easier to just add one to everything to accomodate how certain code structure is written.
             selectedElement = d3.select("#legend_"+(pathwayValueNames.indexOf(schoolTypeSelect.value)+1))
-            if(clicked[indexOfElement] == 0) {
+
+            // Making sure that the button isn't already clicked when we go to click it. If it is, just hides the displayed map elements instead of showing them again.
+            if(clicked[indexOfElement] == 0 && document.getElementById('legend_'+valueRank).attributes.fill.value !== "gainsboro") {
                 clicked[indexOfElement] = 1
+
+                // Here we get all the elements from the list, note that they don't have checkboxes but are themselves checkboxes, in that clicking on them performs behavior similar to a checkbox. 
                 listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]')
                 listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
                 
+                // List of schools we're going to have be visualized, but first we get all the school names and types
                 schoolNames = []
-                
                 let schoolsToVisualize = []
                 let schoolType = null
                 for (const checkbox of listSelected) {
+                    // Due to the formatting to ensure that every ID on the page was unique, we had to add the type to all menu list elements.
+                    // Formatting is <name>$<type> for each ID that is read in from these checkboxes.
                     returnValue = document.getElementById(checkbox).value.split("$")
                     schoolNames.push(returnValue[0])
                     schoolType = returnValue[1]
                 }
-                elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
+
+                // Now that we've identified all the schools and gotten their names, we can reference the full list of schools and only take those which match in both name and type
+                elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)                
                 schoolsToVisualize.push(elementsSchools)
+
+                // To centralize the processing of schools, we add all schools that we plan to visualize here and then visualize them elsewhere.
                 display_legend_elements[schoolTypeSelect.value] = schoolsToVisualize
-                if(document.getElementById("legend_selection").value!="menuCreation")
-                    selectedElement.attr("fill","gainsboro")
+                
+                // Indicates that the button has been clicked 
+                selectedElement.attr("fill","gainsboro")
             } else {
+                //Reset the clicked array element, make it so no elements display in external processing, and reset the color
                 clicked[indexOfElement] = 0
                 display_legend_elements[schoolTypeSelect.value] = "none"
                 this.style.backgroundColor = "gainsboro";
                 selectedElement.attr("fill","transparent")
             }
+            // Make sure that any changes made from the above code take place.
             create_map()
         }
-        
-        buttonToVisualizeAll.innerHTML = "Visualize All"
 
+        //Finish the creation of the button by giving it text and adding it to the menu
+        buttonToVisualizeAll.innerHTML = "Visualize All"
         currentElement.appendChild(buttonToVisualizeAll)
+
         clicked = clicked.slice(0,newCutoffIndex)
+
+
+        // When a new menu is created, its important to set the button to be the right color, as well as initializing the value of the 
+        // clicked argument to 0.
         clicked[indexOfElement] = 0
         document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
-
+        
+        // Remove old_menus, particularly those that follow the changed menu here.
         delete_old_menus(nextElement)
 
+        // Create a new menu when you select an institution type/change the institution type
         if(document.getElementById("legend_selection").value==="visualizeClick")
-            create_menu(nextElement, newCutoffIndex) //Update this to be on visualization or node plot, not for dropdown changes
+            create_menu(nextElement, newCutoffIndex)
+
+        // When the institution type is changed from the dropdown, we need to visually clean up everything that used to be there
         create_map()
     }
 }
 
 function delete_old_menus(nextElement) {
+    // PRE: Integer input representing the next element from which you'd like to remove all menus at and beyond
+    // POST: Removes all menu elements at and beyond the integer given for the input
+
+    // Iterate through all menu elements starting at the index for "nextElement"
     for (let i = nextElement, oldTotal = totalMenus; i < oldTotal; i++) {
+        
+        // Get the dropdown menu type, as well as grabbing the element for the visualize all button
         type = document.getElementById("typesDropdown" + i).value
         element = document.getElementById("all_button_" + i)
+        // We want to make sure that if this element exists, that we're checking if its clicked. If it is then we're removing all associated
+        // map display elements with it.
         if(element!==null)
             if (window.getComputedStyle(element,null).getPropertyValue('background-color')=="rgb(126, 126, 126)") {
                 display_legend_elements[type] = "none"
+                // Reset the visualize options tab for the colors of the legend
                 d3.select("#legend_" + pathwayValueNames.indexOf(type)).attr("fill","transparent")
             }
+        // We remove the menu and reduce the total menu counter by 1 after removing any visualized map elements
         document.getElementById("typesMenu_" + i).remove();
         totalMenus -= 1
     }
 }
 
 function create_school_list(type, indexOfElement) {
+    // PRE: type is a string that is associated with an institution type, indexOfElement is an integer associated with the menu to update
+    // POST: Creates a full list of schools based on filter options and the type given
+
+    // Get the menu that we're going to be adding/updating the school list for
     var schoolListElement = document.getElementById("school_list_" + indexOfElement);
+    
+    // If the schoolListElement already existed, then we remove all of the menu options from it.
     if (schoolListElement != null) {
         let child = schoolListElement.lastElementChild;
         while (child) {
             schoolListElement.removeChild(child);
             child = schoolListElement.lastElementChild;
         }
+    // If the schoolListElement does not exist, then we create the menu for the first time without instantiating its children yet
     } else {
         schoolListElement = document.createElement("ul")
         document.getElementById("typesMenu_" + indexOfElement).appendChild(schoolListElement);
@@ -247,14 +346,24 @@ function create_school_list(type, indexOfElement) {
         schoolListElement.setAttribute('class', "school_list")
     }    
     
+    // These specific institutions do not have programs, and as such we exclude them from filters based on programs 
     if(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute"){
         school_list = schools.filter(school => school.type === type)
+    // When creating school lists, we want to abide by the potential filter options that could be provided by the user, based on their input in different fields
     } else {
+        // Get the current menu before doing anything
         currentElement = document.getElementById("typesMenu_" + indexOfElement);
+
+        // optionValue is for filtering by and/or for having both or either programs the user could select to filter by
         optionValue = currentElement.querySelector('input[name="selector_' + indexOfElement + '"]:checked').value;
+        // optionValue2 is for sorting the school list elements by either alphabetical order or by distance from target (closest first)
         optionValue2 = currentElement.querySelector('input[name="selector2_' + indexOfElement + '"]:checked').value;
+        
+        // 
         filter1Value = document.getElementById("filter1_" + indexOfElement).value
         filter2Value = document.getElementById("filter2_" + indexOfElement).value
+        
+        // A bunch of filter options based on if statements for potential user interaction that handles all the potential options on user input on program selections
         if(filter1Value == "" && filter2Value == "")
             school_list = schools.filter(school => school.type === type)
         else if(filter1Value != "" && filter2Value == "")
@@ -266,26 +375,38 @@ function create_school_list(type, indexOfElement) {
         else
             school_list = schools.filter(school => school.type === type && (school.program.includes(filter1Value) && school.program.includes(filter2Value)))
 
-        if(indexOfElement!=0 && optionValue2 == "Dist."){
+        // Sorting by distance is possible for menus beyond the first
+        if(indexOfElement != 0 && optionValue2 == "Dist."){
+            
+            // potentialSchoolList is poorly named, references previous list of schools
             var potentialSchoolList = document.getElementById("school_list_" + (indexOfElement-1));
+            
+            // checkboxes to see which, if any, checkboxes have been selected in the previous list of institutions
             var checkboxes = potentialSchoolList.querySelectorAll('input[type="checkbox"]:checked');
+            
+            // If any checkboxes are selected, only take the final school in that list of checkboxes
             last_school = checkboxes[checkboxes.length-1]
+
+            // So long as the previous list has one selected institution, we figure out it's lat/lon for sorting purposes
             if(last_school !== undefined){
+                // Grab the institution from "schools" after splitting the pieces to filter by the correct name and type
                 returnValue = last_school.value.split("$")
                 last_school_name = returnValue[0]
                 last_school_name_type = returnValue[1]
                 elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
-                var cLat = parseFloat(elementsSchool.lat),cLon = parseFloat(elementsSchool.lon);
+                
+
                 school_list.sort(function(a,b){
                     var [aXPos,aYPos] = [a.lon,a.lat]
                     var [bXPos,bYPos] = [b.lon,b.lat]
-                    let [cXPos,cYPos] = [cLon,cLat]
+                    let [cXPos,cYPos] = [elementsSchool.lon,elementsSchool.lat]
                     
                     distanceA = Math.sqrt((cXPos-aXPos)**2+(cYPos-aYPos)**2)
                     distanceB = Math.sqrt((cXPos-bXPos)**2+(cYPos-bYPos)**2)
     
                     return (distanceA > distanceB) - (distanceA < distanceB)
                 })
+            // Warning to user if they make a poor choice and attempt to sort based on distance for a non-existent element.
             } else {
                 alert("You have selected distance sorting with no prior school selected, please don't.")
             }
