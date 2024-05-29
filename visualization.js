@@ -62,6 +62,11 @@ d3.csv("possiblePrograms.csv").then(function (programs) {
 // Despite not using the react or node.js frameworks, we want a little reactivity from the website, so I custom programmed a resize function which is specified later in the code.
 window.onresize = resize;
 
+// More reactive elements pertaining to elements surrounding the background when a user selects an element
+const schoolSelectBackground = document.getElementById("school_background")
+schoolSelectBackground.addEventListener("click",(event)=>{
+    d3.select("#screen_block_for_school").classed("hidden",true)
+})
 
 function create_menu(indexOfElement, startingCutoff,type="") {
     //PRE: indexOfElement is a numeric element where you intend to create a new element
@@ -412,9 +417,11 @@ function create_school_list(type, indexOfElement) {
             }
         }
     }
-    
+
+    // To ensure a unique ID for each of the elements, we assign each one a different number combination based on the menu index and school index
     schoolCount = 0
     for (const school of school_list) {
+        // Actual creation of list elements, one by one
         listElement = document.createElement("li")
         var schoolOption = document.createElement("INPUT");
         schoolOption.value = school.name + "$" + school.type;
@@ -426,6 +433,8 @@ function create_school_list(type, indexOfElement) {
         labelName.setAttribute("class","label_name")
         labelAddress.setAttribute("class","label_address")
 
+        // In order to have the appropriate display for addresses, we need to break down each piece separately and then stich them back together
+        // Addresses with more than three components have a P.O. box, which we don't care to display
         components = school.address.split(',')
         addressBreakdown = ""
         if(components.length > 3){
@@ -434,33 +443,41 @@ function create_school_list(type, indexOfElement) {
             addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
         }
 
+        // Creation of label name and address as well as their appendage
         labelName.innerHTML = school.name
         labelAddress.innerHTML = addressBreakdown
-
         schoolLabel.appendChild(labelName)
         schoolLabel.appendChild(labelAddress)
 
+        // Not entirely sure what the htmlFor tag is for, but I added the same value to the ID to keep things consistent
         schoolLabel.htmlFor = "school" + indexOfElement + "_" + schoolCount;
+        
+        // Piece everything together now that its all been created
         listElement.appendChild(schoolOption)
         listElement.appendChild(schoolLabel)
+
+        // Interactivity element, basically when a user hovers a menu option, we want it to display more prominently on the map
         listElement.onmouseover = function(){
-            
+            // Checking to see if the element is already selected, as the visual will be different if it is
             listSelected = this.parentElement.querySelectorAll('input[type="checkbox"]:checked')
             listSelected = Array.prototype.slice.call(listSelected).map(d => d.id)
             childID = this.firstChild.id
             
+            // Checking if the user is already hovering the element, prevents there from being a pile up of visual clutter in certain edge cases
             if(hovering == 0){
-
+                // Once again, finding the specific school using the value associated with itself
                 let [schoolName,schoolType] = this.firstChild.value.split("$")
-                let svg = d3.select("#map_container")
-                svg = svg.select("svg")
                 elementsSchools = schools.filter(school => schoolName === school.name && schoolType === school.type)
 
+                // schools.filter returns an array, so we need to get the first (only) element of that array before going further
                 singleSchool = elementsSchools[0]
 
+                // projection using the OSM/leaflet map structure
                 let cPos = map.latLngToLayerPoint(singleSchool.latlng)
                 let [cxPos,cyPos] = [cPos.x,cPos.y]
                 let opacity = "50%";
+
+                // Usual D3 elements that need to be appended, either an image or a simple circle depending on whether the element has already been selected
                 if (listSelected.includes(childID)){
                     gMap.append("svg:image")
                         .attr("class","hover")
@@ -482,73 +499,92 @@ function create_school_list(type, indexOfElement) {
                     .style("opacity",opacity)
                 }
             }
+            // Setting hovering to 1 until the mouse completely leaves, as the checkbox bounds are not the same as the full bounds of the hover potential
             hovering = 1
         }
         listElement.onmouseleave = function(){
-        d3.select("#map_container").selectAll(".hover").remove()
+            // Remove element that was being hovered on mouseleave, cheaper than re-running create_map()
+            d3.select("#map_container").selectAll(".hover").remove()
+            // Indicate that the user has actually had their mouse leave the checkbox
             hovering = 0
         }
         listElement.onclick = function(){
+            // Ensures that when the element is clicked multiple times, it removes that element from the map on future visualizations
             clicked[indexOfElement] = 0
             create_map()
-        if(!(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute")){
-            document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
         }
-    }
+        // Add child list element to full unordered list and increment counter
         schoolCount += 1
         schoolListElement.appendChild(listElement)
     }
 }
 
 function add_filters(type, indexOfElement){
+    // PRE: type is a string containing the institution type name, indexOfElement is an integer 
+    // POST: Add filters to the top of the menu box underneath the institution dropdown header
+
+    // select the current menu (currentElement) and check to see if filtersSelection has already been initialized. If it has, remove it to prevent duplicates.
     const currentElement = document.getElementById("header_" + indexOfElement)
     var filtersSelection = document.getElementById("filtersSelection_" + indexOfElement);
     if(filtersSelection != null){
         filtersSelection.remove()
     }
-    if(!(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute")){
-        filtersSelection = document.createElement("div")
 
+    // These particular elements don't have programs associated with them, so there's no need for filters.
+    if(!(type == "Elementary School" || type == "Middle School" || type == "HS STEM Program" || type == "Undergrad STEM Program" || type == "Research Institute" || type == null)){
+        // Create the filter box and associated ID
+        filtersSelection = document.createElement("div")
         filtersSelection.id = "filtersSelection_" + indexOfElement;
     
+        //There's two separate filters for two different potential program selections
         let filter1 = document.createElement("select");
-        filter1.name = "programFilter1"
-        filter1.id = "filter1_" + indexOfElement
-        filter1.setAttribute("class", "types_dropdown")
-
         let filter2 = document.createElement("select");
+        filter1.name = "programFilter1"
         filter2.name = "programFilter2"
+        filter1.id = "filter1_" + indexOfElement
         filter2.id = "filter2_" + indexOfElement
+        filter1.setAttribute("class", "types_dropdown")
         filter2.setAttribute("class", "types_dropdown")
     
-        if(type != null){
+        // With the dropdowns created, we can now add the actual selection piece to the filters
+        // Each option starts empty until something is clicked
+        var programOption1 = document.createElement("option");
+        var programOption2 = document.createElement("option");
+        programOption1.value = ""
+        programOption1.text = ""
+        programOption2.value = ""
+        programOption2.text = ""
+        filter1.appendChild(programOption1);
+        filter2.appendChild(programOption2);
+
+        // Now we need the program list for the specific type of interest
+        // We do a lot of removing and cleaning of the data for the dropdown here,
+        // and unfortunately not all of it works. The spreadsheet needs to be updated
+        // such that all commas separating programs are semicolons or some other uncommon delimter
+        // before this would work properly. Update the code 4 lines down when that task is completed.
+        let program_list = possiblePrograms.filter(program => program.types === type)
+        program_list = program_list[0].programs.replace(/['"]+/g, '')
+        program_list = program_list.replace(/[\[\]]/g,'');
+        program_list = program_list.split(',');
+
+        // Now that we have a cleaned program list, we can create a dropdown selection option for each one
+        for (const program of program_list) {
             var programOption1 = document.createElement("option");
             var programOption2 = document.createElement("option");
-            programOption1.value = ""
-            programOption1.text = ""
-            programOption2.value = ""
-            programOption2.text = ""
+            programOption1.value = program.trim();
+            programOption1.text = program.trim();
+            programOption2.value = program.trim();
+            programOption2.text = program.trim();
             filter1.appendChild(programOption1);
             filter2.appendChild(programOption2);
-            let program_list = possiblePrograms.filter(program => program.types === type)
-            program_list = program_list[0].programs.replace(/['"]+/g, '')
-            program_list = program_list.replace(/[\[\]]/g,'');
-            program_list = program_list.split(',');
-            for (const program of program_list) {
-                var programOption1 = document.createElement("option");
-                var programOption2 = document.createElement("option");
-                programOption1.value = program.trim();
-                programOption1.text = program.trim();
-                programOption2.value = program.trim();
-                programOption2.text = program.trim();
-                filter1.appendChild(programOption1);
-                filter2.appendChild(programOption2);
-            }
         }
+        
+        // Doubling down on making sure things are instantiated in an empty fashion
         filter1.value = ""
         filter2.value = ""
         
-            
+        // Labels at the request of PIs for the purpose of clarity, basically renaming programs to something
+        // more relevant, based on the selected institution type
         var programLabel = document.createElement("label");
         if(type==="High School"){
             programLabel.innerHTML = "AP Courses"
@@ -558,6 +594,7 @@ function add_filters(type, indexOfElement){
             programLabel.innerHTML = "Programs"
         }
         
+        // 
         programLabel.htmlFor = "programs";
         programLabel.setAttribute("class", "dropdown_label");
         radioButtonContainer = document.createElement("fieldset")
@@ -1069,9 +1106,3 @@ function arraySetup(){
 function resetScreen(){
     d3.select("#screen_block_for_options").classed("hidden",false)
 }
-
-const schoolSelectBackground = document.getElementById("school_background")
-
-schoolSelectBackground.addEventListener("click",(event)=>{
-    d3.select("#screen_block_for_school").classed("hidden",true)
-})
