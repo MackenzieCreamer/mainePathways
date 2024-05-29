@@ -395,7 +395,7 @@ function create_school_list(type, indexOfElement) {
                 last_school_name_type = returnValue[1]
                 elementsSchool = schools.filter(school => last_school_name === school.name && last_school_name_type === school.type)[0]
                 
-
+                // Sorting function using the pythagorean theorem to compare distances. Sorts in ascending order of distance from previous institution.
                 school_list.sort(function(a,b){
                     var [aXPos,aYPos] = [a.lon,a.lat]
                     var [bXPos,bYPos] = [b.lon,b.lat]
@@ -412,6 +412,7 @@ function create_school_list(type, indexOfElement) {
             }
         }
     }
+    
     schoolCount = 0
     for (const school of school_list) {
         listElement = document.createElement("li")
