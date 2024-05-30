@@ -981,6 +981,10 @@ function initialize() {
         "Research Institute":"none",
         "Company":"none"
     }
+    // Regardless of how many times initialize is called, we want to have the state of the website always reset to having no menus, no blockedLegends (talk about later) and
+    // a fresh slate from which the user can interact with the site. Every time the user changes their user experience, this function triggers, so we want this to happen an
+    // arbitrary number of times. This comes earlier in the function since doing it later means that there's residual visualization elements that don't belong anymore.
+    delete_old_menus(0)
 
     // Based on the selection from the user that would trigger this function, the arraySetup() function needs to handle things in unique ways.
     arraySetup()
@@ -1043,10 +1047,7 @@ function initialize() {
 
     }
 
-    // Regardless of how many times initialize is called, we want to have the state of the website always reset to having no menus, no blockedLegends (talk about later) and
-    // a fresh slate from which the user can interact with the site. Every time the user changes their user experience, this function triggers, so we want this to happen an
-    // arbitrary number of times.
-    delete_old_menus(0)
+    
     blockedLegends = {}
     if(document.getElementById("legend_selection").value==="visualizeClick"){
         create_menu(0, 0)
@@ -1089,83 +1090,152 @@ function typeToIndex(type){
 }
 
 function create_legend(){
+    // POST: Create/replace the legend sized based on the height of the user's webpage
+
+    // Select the container and remove the elements that are currently populating the legend
     container = d3.select("#legend_visualization")
     container.html("")
+
+    // Set the height of the legend to the global height as defined in resize()
     legendHeight = height
+
+    // Clearing out the svg if it already exists so we can pave the way for a new SVG with differently sized elements
     if(typeof svg !== "undefined"){
         svg = undefined
     }
+
+    // Set the height of the SVG (but not the container, important distinction) to the number of elements * 50
+    // This sets it up with how the CSS/HTML are written to allow it to be scrolling on overflow and have a legend larger
+    // than the container itself.
     svg = container.append('svg')
-        .attr('height', 50*pathwayValueReversed.length)
+        .attr('height', 50*placeHolder.length)
         .attr('width', 250);
         
+    // placeHolder is a reference to the different institution names. This means that when the number of institutions decreases/increases
+    // we're able to handle them. Also - this is creating a new "g" element for each datum within placeHolder
     var elem = svg.selectAll("g")
         .data(placeHolder)
 
+    // As the name suggests, this is a function set for when the user inputs their click on one of the legend elements. This function,
+    // based on the legend_selection, either creates previews of the different map elements on click, or it creates menus that the user
+    // can interact with directly.
     var onClick = function(d,name) {
-        const matches = document.querySelectorAll("select.types_dropdown");
-        typeMatch = []
-        for(const match of matches){
-            if(match.value===name)
-                typeMatch.push(match.parentElement.parentElement.parentElement.getElementsByClassName("visualizeAllButton")[0])
-        }
+        // "name" is the element associated with being clicked. So if a user clicks "Middle School" the name variable will store "Middle School"
+
+        // We kick things off by just getting two separate pieces of information. The first is the ID of the element we just clicked
+        // and the second is the index of the element whose ID we just clicked. This is important for visualizing the correct the correct information
         selectedElement = d3.select("#"+this.firstChild.id)
         elementID = this.firstChild.id
         elementIndex = elementID.split("_")[1]
+
+        // Based on the dropdown selection menu at the top of the legend menu
         if(document.getElementById("legend_selection").value==="visualizeClick"){
-            if(display_legend_elements[name]==="all"){
-                display_legend_elements[name]="none"
-                selectedElement.attr("fill","transparent")
-                for(const element of typeMatch){
-                    element.style.backgroundColor = "gainsboro"
-                }
-            } else if(display_legend_elements[name]==="none"){
+            
+            // Due to the fact that there can be a number of menus with the same type (such as "Middle School", it's important we check each one)
+            // This first line finds the dropdown elements at the top of each of the menus and collects their information.
+            const matches = document.querySelectorAll("select.types_dropdown");
+            typeMatch = []
+
+            // From here, we get the values of each of these dropdown selections and compare them against the name of our clicked element.
+            // If they match, we keep go up the parent element relative to the match three separate times. This gives us the entire container as the element.
+            // Then, once we have the whole container as the element, we get the child node with the class name "visualizeAllButton". We intend to 
+            // change this button's behavior elsewhere in the code later, so we are doing are due diligence and tracking the button state through this.
+            for(const match of matches){
+                if(match.value===name)
+                    typeMatch.push(match.parentElement.parentElement.parentElement.getElementsByClassName("visualizeAllButton")[0])
+            }
+
+            // Based on the behavior either from itself or elsewhere in the code, we have two states, one where there is no preview visualization already existing
+            // in which case it visualizes everything, or one where there is a visualization preview already in place so it clears it.
+            if(display_legend_elements[name]==="none"){
+                
+                // Setting the preview display elements to all means all elements relating to that legend item get displayed.
                 display_legend_elements[name]="all"
+
+                // To be consistent, we update the colors of preview buttons so they make sense in the context of other clicked features on the website.
                 selectedElement.attr("fill","gainsboro")
                 for(const element of typeMatch){
                     element.style.backgroundColor = "rgb(126, 126, 126)"
                 }
+
             } else {
+
+                // Setting the preview display elements to none means no elements relating to that legend item get displayed.
                 display_legend_elements[name]="none"
+
+                // To be consistent, we update the colors of preview buttons so they make sense in the context of other clicked features on the website.
                 selectedElement.attr("fill","transparent")
                 for(const element of typeMatch){
                     element.style.backgroundColor = "gainsboro"
                 }
             }
         } else {
+            
+            // We now check to see if "blockedLegends" is undefined, or, in otherwords, that for the specific element that exists that its empty
+            // We do this because we want to see if we need to either add a menu relating to the clicked element by the user, or if we need to delete
+            // a menu relating to that element, clicked by the user.
             if(blockedLegends[elementIndex] === undefined){
                 
+                // Here, we add the elementIndex to the blockedLegends dictionary. By doing this we establish where in the line-up it belongs when we 
+                // recreate all the menus to slot it into its appropriate spot in the list (list always go from lowest order to highest order institution)
                 blockedLegends[elementIndex] = name
+
+                // Updating **only** the element that was clicked by the user, because we have different behavior in this section (creating menus) which is
+                // **not** shared by the menus themselves.
                 selectedElement = d3.select("#legend_" + elementIndex)
                 selectedElement.attr("fill","gainsboro")
             } else {
+                
+                // To remove an element from the dictionary, we delete the entire memory location of that entry. This is important since it will update the
+                // displayed list of menus by removing the element the user wishes not to visualize anymore.
                 delete blockedLegends[elementIndex]
+                
+                // Updating **only** the element that was clicked by the user, because we have different behavior in this section (creating menus) which is
+                // **not** shared by the menus themselves.
                 selectedElement = d3.select("#legend_" + elementIndex)
                 selectedElement.attr("fill","transparent")
             }
+
+            // Since we're deleting menus in order to update the order correctly, we need to get rid of all of them and re-add them. There's potentially a
+            // more elegant approach to this problem, but I figure that I'd save myself the effort by just deleting/re-adding all menus every time.
             delete_old_menus(0)
+            
+            // Key/value pair of the dictionary which is actually based on the elementIndex, which, being numeric, will always sort the way we want it to
+            // when creating new menus
             var keys = Object.keys(blockedLegends);
             keys.sort()
-            for (var i=0; i<keys.length; i++) { // now lets iterate in sort order
+
+            // Now we can actually create the menus in the order we want. Since "totalMenus" increments as we go, it will always create the correct number
+            // of menus without us having to do anything special, and we assign the new menu the type associated with the name given by the elementIndex order.
+            for (var i=0; i<keys.length; i++) {
                 var key = keys[i];
                 var name = blockedLegends[key];
                 create_menu(totalMenus,0,name)
             }
         }
+
+        // Despite the fact that only one of these two elements directly influences the map, the addition and removal of new menus warrants the creation of
+        // the map overlay elements again in addition to the "visualizeOptions" since a user **could have** pressed the preview button in the menu itself.
         create_map()
     }
 
+    // To actually access and create individual elements, we follow-up the earlier "elem" variable creation by giving it the ".enter()" function which allows
+    // us to create an individual visualization element for each of the datum provided.
     var elemEnter = elem.enter()
         .append('g')
+        // Rather than handling the x/y translation for the elements, we move the entire box such that all child elements are moved right along with it.
         .attr("transform",function(d,i){return "translate(10," + (1+50*i) + ")"})
         .on("click",onClick)
+        // Technically, this could be .attr("class","legendBoxes") as well, there's no functional difference between that and .classed("legendBoxes",true)
+        // in this case. The difference is that this **adds** the class, whereas .attr('class',<class>) sets the class.
         .classed("legendBoxes",true)
 
+    // Notably the only place where we give it an ID for these elements. That's because when the user clicks the box, we want to make sure we know which
+    // element was actually clicked for the purpose of the "onClick" function for the legend elements.
     elemEnter.append('rect')
         .attr('x',0)
         .attr('y',0)
         .attr("stroke", "black")
-        .attr("border-radius","100px")
         .attr("fill","transparent")
         .attr("width","90%")
         .attr("height","46px")
@@ -1187,57 +1257,100 @@ function create_legend(){
 }
 
 function selectionChange(){
+    // POST: When the legend selection is changed, we update the behavior of the legend and delete any menus to
+    // pave the way for the new behavior of the legend.
+
+    // This is straight-forward, just gets the value of the dropdown menu in the legend.
     value = document.getElementById("legend_selection").value
+
+    // Clears all the visualization dictionary elements after the change is made (since the behavior is entirely changed and we
+    // want to be consistent with behavior)
     for(const name of pathwayValueNames){
         display_legend_elements[name] = "none"
     }
+
+    // When we change the legend behavior, we want to clear all of the legend colors to reflect that they've been "reset" and used again
     for (const i of Array(pathwayValueNames.length+1).keys()) {
         selectedElement = d3.select("#legend_" + i)
         selectedElement.attr("fill","transparent")
     }
+    
+    // Since we're changing the behavior, it's worthwhile to just delete the menus and reset everything so that the system can have a clean slate
+    // for the user to navigate among.
     delete_old_menus(0)
+
+    // Explained earlier in the code, but when we delete old menus, we need to also recreate the map as a user could have had a visualization
+    // preview in place courtesy of the menu instead of the legend.
     create_map()
+    
+    // Either create a new menu, or make sure the blockedLegends dictionary is cleared out, based on the behavior change.
     if(value==="menuCreation"){
+        // No need to populate the menus on the right when the user selects "menuCreation", since that's the point of the legend option
         blockedLegends = {}
     } else if(value==="visualizeClick"){
+        // Creates that first menu that the user can reference to create further menus from.
         create_menu(0, 0)
     }
 };
 
 function reset() {
+    // POST: Resets the bounds whenever the user zooms in or out. This is important to make sure that the visualization overlay on the map
+    // doesn't get lost as the user zoom/translates the map in the background.
+    
+    // Since (almost) all institutions are within the state of Maine, we can just have the bounds as the county lines. That said, there is
+    // precisely **one** institution that is within the state of Maine but not within a county line. That being "Shoals Undergraduate Research Group"
+    // located on Appledore Island, which is further south than the furthest south county lines in Maine.
     var bounds = mapPath.bounds(counties),
         topLeft = bounds[0],
         bottomRight = bounds[1];
 
+    // Since Appledore Island is being included, we need to make sure that the bounds for the visualization overlay are **always** able to capture the
+    // element being visualized on the map. In order to do this, at the max zoom level, we need to add an additional 50000 pixels in all directions to the
+    // map. Realisitically, this should be scaled at an inverse relative to the zoom (lower zoom means more pixel boundaries set up) but I was trying to make sure that
+    // everything worked as quickly as possible.
+    // Also, the subtraction from the topLeft[0] and topLeft[1] is because the map needs to be expanded up and left, both of which correspond with a negative direction
+    // since (0,0) is the top left of the visualization window, and (width,height) is the bottom right, different than how we're mathematically taught graphs, normally.
     topLeft[0] -= 50000
     topLeft[1] -= 50000
-
     bottomRight[0] += 50000
     bottomRight[1] += 50000
 
+    // So despite the fact that every svg is **basically** 100,000 x 100,000 pixels, the translation earlier on in setting the center roughly on the center of Maine
+    // makes sure that everything is always lined up correctly.
+    // This is different than the actual map itself where the visualization is located, which is because of the next variable that gets updated "gMap"
     svgMap.attr("width", bottomRight[0] - topLeft[0])
         .attr("height", bottomRight[1] - topLeft[1])
         .style("left", topLeft[0] + "px")
         .style("top", topLeft[1] + "px");
 
+    // Since we have to go to great lengths with the bounds to have them work correctly, we need to make sure we locate all the elements that we're going to visualize more
+    // precisely on the map to where the user would see it, which is the inverse of topLeft
     gMap.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
 
+    // We use the mapPath function established in the initialize() function with the correct projection after translating to make sure everything is correctly located.
     feature.attr("d", mapPath)
         .attr("class","county");
 
+    // When we zoom in/translate the map, it needs to be adjusted since the actual pixel location of different visualized elements may have changed.
     create_map();
 }
 
 function arraySetup(){
+    // POST: Based on the user's selection from when they initialized their specific user experience, we alter the primary array from which selection dropdowns draw from,
+    // legend elements draw from, and what's used to compare different schools.
+
+    // Get the user experience value, then hide the overlay that prevents the user from seeing the entire map.
     userExperience = document.querySelector('input[name="personType"]:checked').value
     d3.select("#screen_block_for_options").classed("hidden",true)
     
+    // Values pertaining directly to the institutions that we have in our system. New additions will need to be added and ordered here.
     pathwayValueNames = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
     pathwayValueRanks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     pathwayValueReversed = ["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"]
 
+    // For the purposes of slicing the array, we just establish a start/end variable and assign it based on the user experience provided. In case a user gets
+    // smart with us and tries to leave the selection blank, we default it to all possible institutions to display to them.
     var start,end;
-
     if(userExperience === "parent" || userExperience === "earlyStudent"){
         start = 0
         end = 5
@@ -1250,19 +1363,26 @@ function arraySetup(){
     } else if(userExperience === "everyone"){
         start = 0
         end = 11
+    } else {
+        start = 0
+        end = 11
     }
-
     pathwayValueNames = pathwayValueNames.slice(start,end)
     pathwayValueRanks = pathwayValueRanks.slice(start,end)
     pathwayValueReversed = pathwayValueReversed.slice(start,end)
     
-    
+    // Important arrays to establish for other elements of the code throughout the entire script. We establish/re-establish this every time the user makes an action.
     pathwayValues = [pathwayValueNames, pathwayValueRanks]
-
     placeHolder = pathwayValueReversed.reverse()
+    
+    // While techincally not a resizing of the screen, reiterating through the resize function is important since the container height for the legend is based on the actual
+    // length of the legend (total number of elements)
     resize()
 }
 
 function resetScreen(){
+    // POST: Literally just reveals the overlay for the tailored experience that handles the 
+    // initialize function. Probably doesn't need to be a standalone function, but is in this case.
+
     d3.select("#screen_block_for_options").classed("hidden",false)
 }
