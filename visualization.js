@@ -6,7 +6,7 @@ var alreadyInitialized = false;
 
 // A bunch of global variables that hold information on the map and any projections for the purposes of overlaying info on the map from other functions
 var pathwayValueNames,pathwayValueRanks,pathwayValues,pathwayValueReversed,placeHolder;
-var map,overlay,osmLayer,svgMap,gMap,mapTransform,mapPath,projectPoint,feature
+var map,osmLayer,svgMap,gMap,mapTransform,mapPath,projectPoint,feature
 
 // Information pertaining to the menus, width/height of the map, outlines of map features, and more
 var blockedLegends = {}
@@ -698,25 +698,45 @@ function add_filters(type, indexOfElement){
 }
 
 function create_map(onClick = 0) {
+    // PRE:  onClick is either 0 or 1 and must be an integer
+    // POST: Generates the svg map overlay with leaflet in the background. 
     lastBehavior = onClick
+
+    // Removes old overlay map elements before adding new overlay map elements to the leaflet structure.
     d3.selectAll(".mapElement").remove();
 
+    // Tooltip for additional information on hover over different map overlay elements
     var tooltip = d3.select("body")
-    .append("div")
-    .style("position", "absolute")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "2px")
-    .style("border-radius", "5px")
-    .style("padding", "5px")
-    .style("z-index",9999)
+        .append("div")
+        .style("position", "absolute")
+        .style("opacity", 0)
+        .attr("class", "tooltip")
+        .style("background-color", "white")
+        .style("border", "solid")
+        .style("border-width", "2px")
+        .style("border-radius", "5px")
+        .style("padding", "5px")
 
     var mouseover = function(d) {
+        // For handling the mousing over of map elements on the screen. This always causes the element itself to populate
+        // but does not populate the contents within the element. That is handled by mousemove
+
         tooltip.style("opacity", 1)
-        }
+        // This is necessary due to how leaflet handles their z-index. For some reason, rather than
+        // having their z-index be left alone and stacking piece after piece on the webpage, they
+        // manually set their z-index which causes a lot of layout issues. Rather than undoing their work
+        // they did, I just adjust the z-index of each of the elements of the page myself, manually.
+            .style("z-index",9999)
+    }
+    
     var mousemove = function(d,school) {
+        // Making sure that as the cursor moves around the screen it does two separate things.
+        // The first thing is that when the cursor moves, it moves the tooltip along with it, always roughly
+        // ~7.5 pixels to the bottom right. The second thing that it does is it populates the contents of the tooltip
+        // with content particularly from the institution associated with the element being hovered.
+
+        // Split the address into several components with the intent of chopping out information on the P.O. box, which we've previously
+        // done in other areas of the code.
         components = school.address.split(',')
         addressBreakdown = ""
         if(components.length > 3){
@@ -724,63 +744,113 @@ function create_map(onClick = 0) {
         } else {
             addressBreakdown = components[0] + "<br>" + components[1] + ", " + components[2]
         }
-        fullHTML = school.name + "<br>" + addressBreakdown
 
+        // Create the fullHTML for the tooltip, and attach it to the tooltip.
+        fullHTML = school.name + "<br>" + addressBreakdown
         tooltip.html(fullHTML)
-            .style("top", (d.clientY+25)+"px")
-            .style("left",(d.clientX+25)+"px")
-        }
-    var mouseleave = function(d) {
-        tooltip.style("opacity", 0)
+            .style("top", (d.clientY+5)+"px")
+            .style("left",(d.clientX+5)+"px")
     }
+
+    var mouseleave = function(d) {
+        // When the mouse leaves the tooltip, we want the tooltip to go away.
+        
+        // It's important that we set the opacity and z-index down to 0 after we're done, otherwise it hovers over the map invisibly
+        // and causes hovering of other elements to not always work (since you're actually hovering the invisible tooltip)
+        tooltip.style("opacity", 0)
+        tooltip.style("z-index", 0)
+    }
+
     var onclick = function(d,school){
+        // When clicking a node link, we want that extra additional information to pop up on screen that the user can reference.
+        // Particularly, a useful feature is getting to see all the different programs that are available to the user.
+
+        // We unhide the pop-up menu for the school, and then populate it with all the information that a user could possibly want.
+        // Aka all the information we have on the matter. The format and CSS of this is handled in index.html and styles.css, respectively.
         d3.select("#screen_block_for_school").classed("hidden",false)
         document.getElementById("name_value").innerHTML = school.name
         document.getElementById("location_value").innerHTML = school.address
         document.getElementById("link_value").innerHTML = school.link
         document.getElementById("programs_value").innerHTML = school.program
-        console.log(school)
     }
 
+    // Schools with which we need to hold on to and visualize, but not schools of which are being previewed. These are held separately.
     const schoolsToVisualize = []
+    
+    // We set a bound on schools we are visualizing since the schools we are visualizing are separate from the schools. The bounds are important
+    // for understanding what the last set of schools are. Also, the last menu is empty in some circumstances
     bounds = totalMenus
+
+    // Checking to see what the set-up we have going on is - if the legend option is set to visualizing elements on click and not creating menus
+    // then the last menu will always be empty, and as such we need to reduce the bounds by 1 to prevent an out of bounds error.
     if(document.getElementById("legend_selection").value==="visualizeClick")
         bounds = totalMenus - 1
+
+    // Now we go through all of the school lists and check for the schools that have been checked in each one
     for (let i = 0; i < bounds; i++) {
         var schoolListElement = document.getElementById("school_list_" + i);
         var checkboxes = schoolListElement.querySelectorAll('input[type="checkbox"]:checked');
         schoolNames = []
         let schoolType = null
+        
+        // Same splitting behavior we've been using previously for these checkboxes, it's always <name>$<type>
         for (const checkbox of checkboxes) {
             returnValue = checkbox.value.split("$")
             schoolNames.push(returnValue[0])
             schoolType = returnValue[1]
         }
+        
+        // With the full list of names of schools and the respective type for a given menu, we use its type and the names of the schools
+        // this is particularly important for instances like grad school and undergradate/university as many of these schools have both
+        // a grad program and an undergrad program. Noting this, we grab all schools that are present in this list of names we've compiled
+        // for each of the menus, one by one. And then push them into the visualize schools array.
         elementsSchools = schools.filter(school => schoolNames.indexOf(school.name) != -1 && schoolType === school.type)
         schoolsToVisualize.push(elementsSchools)
     }
+
+    // A better programmer than I would not have hardcoded this. I am a better programmer, but I'm lazy and this doesn't exactly impact the quality of the 
+    // application. Just make sure if you need to adjust these things that you do so in a way that it references a global variable or something idk. Or be even better
+    // than me and don't use global variables. It's the easy thing to do, but my naming schema is sometimes too consistent which causes issues. Basically just be careful
+    // and be better.
     ordinalColor = d3.scaleOrdinal()
         .domain(["Elementary School", "Middle School","High School", "HS STEM Program", "CTE", "Community College", "University/Colleges", "Undergrad STEM Program", "Graduate", "Research Institute","Company"])
         .range(["#a5cee3","#1f78b3","#b2de89","#339f2c","#fb9a99","#e3191b","#fcbf6f","#ff7f00","#45dee0","#3b6af9","#676767"])
 
+    // Schools we are previewing, as opposed to visualizing, are handled differently. It's possible to visualize either "all" of an institution type's schools, the first of the two
+    // if/else statements, to visualize only a selection of the schools (say if you were visualizing a filtered menu list), or to visualize no schools. The default is to visualize
+    // no schools, but this can be changed through user interaction.
     schoolsToPreview = []
     for(const name of pathwayValueNames){
         if(display_legend_elements[name] === "all") {
+            // If the button to visualize all is clicked, or a legend element is clicked, it will trigger this flag. It gets all schools of a specific type and
+            // feeds them into a list. That is then processed to get the information necessary to preview all the schools.
             previewSchoolList = schools.filter(school => name === school.type)
             previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
             schoolsToPreview.push(previewSchoolList)
         } else if(display_legend_elements[name] !== "none") {
+            // We handle the list of names elsewhere when the "visualize all" button is selected in the create_menus function (it might be create_school_list).
+            // By handling it this way, we offload the handling of the schools that are actually in the list of schools after filtering. The display_legend_elements
+            // array holds the full list of institution objects.
             previewSchoolList = display_legend_elements[name]
             previewSchoolList = previewSchoolList.slice(0, previewSchoolList.length)
             schoolsToPreview.push(previewSchoolList[0])
         }
     }
-    schoolsToPreview = schoolsToPreview.flat().map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng), program:d.program, link:d.link }))
+    // The result of "schoolsToPreview" is an array of arrays. This is not satisfactory for us, so we flatten the array. After we flatten this array, we use a function
+    // to map the lonlat differently because the handling of lat/lon in leaflet is slightly different than D3. Also, not my fault, but both D3 and leaflet use the term
+    // map as a function which does mean different things in different contexts. (...d) basically keeps the entire object as it was before, and lonlat just adds to what
+    // is now present.
+    schoolsToPreview = schoolsToPreview.flat().map(d => ({ 
+        ...d,
+        lonlat: map.latLngToLayerPoint(d.latlng)
+    }))
 
+    // Finally, we get to the point where we can visualize the nodes now that we have all the processing done. As long as there is an element in the schoolsToPreview
+    // array, we can run this code. Basically it takes the contents of that 1D array of institution objects and spits out an arbitrary number of elements equal to the array
+    // length. For interactivity elements, see earlier code for more information.
     if(schoolsToPreview[0]!=undefined){
         previewVisualizations = gMap.append("g")
         previewVisualizations.selectAll('image')
-            // row.circles contains the array circles for the row
             .data(schoolsToPreview)
                 .enter()
                 .append("svg:image")
@@ -798,16 +868,33 @@ function create_map(onClick = 0) {
                 .on("click",onclick)
     }
     
-
+    // Same as the schoolsToPreview array, we want to make sure there's at least one school to preview before we go into the depths of handling everything
     if (schoolsToVisualize[0] != undefined) {
+        
+        // Arbitrary code that is left over from earlier work. By splitting this elements up, we can visualize a path between schools. It seemed more useful at
+        // the time, but I realize that with how complicated everything is, it may not be the most appealing for users to simply have a line between several
+        // institutions displayed on their screen that means little to nothing to them.
         let firstSchoolList = schoolsToVisualize.slice(0, schoolsToVisualize.length - 1)
         finalSchoolList = schoolsToVisualize[schoolsToVisualize.length - 1]
-        firstSchoolList = d3.merge(firstSchoolList)
-        firstSchoolList = firstSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
-        finalSchoolList = finalSchoolList.map(d => ({ name: d.name, address:d.address, type: d.type, lonlat: map.latLngToLayerPoint(d.latlng) }))
 
+        // Instead of having an N-Dimesional array of N-Dimensional arrays containing isntitution objects of different types, we merge all the arrays together
+        // to have a singular array of many differet types of institutions, and handle their processing separately later.
+        firstSchoolList = d3.merge(firstSchoolList)
+
+        // We need all the information present in the objects for each of these arrays, but we also need one more element, similar to what we did with previewed
+        // schools, so we could accurately represent them on the map. We use (...d) to keep all the old elements, but we add "lonlat" to map the extra content from
+        // the leaflet side of things.
+        firstSchoolList = firstSchoolList.map(d => ({ ...d, lonlat: map.latLngToLayerPoint(d.latlng) }))
+        finalSchoolList = finalSchoolList.map(d => ({ ...d, lonlat: map.latLngToLayerPoint(d.latlng) }))
+
+        // Array that contains the connection between different institutions that will later be visualized.
         let linksBetween = []
 
+        // As long as there are at least 2 institutions, this will add content to the linksBetween list.
+        // This list is used particularly for the first set of schools so we're only ever taking the final school in each list.
+        // We do this because this was an earlier conversation to prevent unnecessary overlapping and connections between different institutions.
+        // (Originally, we were only going to allow one selection for the first n-1 menus, where n is the total number of menus, but we've since
+        // moved away from this concept).
         for (let i = 0; i < firstSchoolList.length - 1; i++) {
             linksBetween.push([firstSchoolList[i].type,
             { lat: firstSchoolList[i].lonlat.y, lon: firstSchoolList[i].lonlat.x },
@@ -815,18 +902,33 @@ function create_map(onClick = 0) {
             ])
         };
 
+        // We get the finalFirst school as this will hold numerous links between the final school in the first school list and all of the potential schools
+        // that are present in the finalSchoolList.
         let finalFirstSchool = firstSchoolList[firstSchoolList.length - 1]
 
+        // We check here to make sure that we even have enough menus/selections before attempting to make connections between different institutions.
         if (finalFirstSchool != undefined) {
+            
+            // We now go through the process of mapping the latlon of the finalFirstSchool to each of the 
+            // final schools until such point as all schools have the additional content attached to them for making clean nodes between everything.
             let finalFirstSchoolLatLon = ({ lat: finalFirstSchool.lonlat.y, lon: finalFirstSchool.lonlat.x })
             finalSchoolsLatLon = finalSchoolList.map(d => ({ lat: d.lonlat.y, lon: d.lonlat.x }))
             let finalLinksBetween = finalSchoolsLatLon.map(d => [finalFirstSchool.type, finalFirstSchoolLatLon, d])
 
+            // With all these new links, we can conect the lines betwee all these schools together.
             linksBetween = linksBetween.concat(finalLinksBetween)
         }
+
+        // This is separate from the links between elements we have before. This is to handle the combination of these lists, now that we've
+        // done what we've needed to do with their separation (the elements of linking different nodes, when a user clicks the "visualize path" button)
         let schoolList = firstSchoolList.concat(finalSchoolList)
 
+        // The "lastBehavior" variable is meant to represent the user clicking the visualize path button and letting it be a toggleable instance, but
+        // I never fully figured out how to keep this variable from being reset each time I ran the function, so I gave up and just let it only exist when the user
+        // visualizes the map with that button specifically. It's easy enough to do, but I had higher priorities on the project.
         if(lastBehavior == 1){
+            
+            // Similar to other mapping elements, just a set of lines instead though instead of several dozen images/circles.
             pathwaysInstitutions = gMap.append('g')
             pathwaysInstitutions.selectAll('line')
                 .data(linksBetween)
@@ -840,10 +942,11 @@ function create_map(onClick = 0) {
                 .attr("class","mapElement")    
         }
 
+        // Certain circumstances lead to instances where "schoolsToVisualize" doesn't properly instantiate as an array despite not being undefined (the earlier
+        // check we had done). To double down on making sure we don't visualize something that doesn't exist, we make sure the array isn't empty.
         if(schoolsToVisualize.length!=0){
             subsetInstitutions = gMap.append("g")
             subsetInstitutions.selectAll('image')
-                // row.circles contains the array circles for the row
                 .data(schoolList)
                 .enter()
                     .append("svg:image")
@@ -859,20 +962,13 @@ function create_map(onClick = 0) {
                     .on("mouseleave", mouseleave)
                     .on("click",onclick)
         }
-
-        
     }
 }
 
-function getIndex(type) {
-    return pathwayValueNames.indexOf(type)
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 function initialize() {
+    // POST: Triggers all of the web application's starting elements such as the legend, the map, and the menus container.
+
+    // A dictionary containing elements that need to be visualized from the legend, based on what has and has not been clicked yet.
     display_legend_elements = {"Elementary School":"none",
         "Middle School":"none",
         "High School":"none",
@@ -886,43 +982,70 @@ function initialize() {
         "Company":"none"
     }
 
+    // Based on the selection from the user that would trigger this function, the arraySetup() function needs to handle things in unique ways.
     arraySetup()
+
+    // This is an artifact that is worth keeping from a time before I understood how or why the map i the background superseeded all other elements of the screen.
+    // Namely, if you've been following this code, the fact that leaflet uses z-index for its elements rather than letting them stack naturally. I'm sure they have their
+    // reasons, though it's still super frustrating to have to navigate.
     d3.select(".leaflet-map-pane").classed("hidden",false)
     
+    // We only want to run the initilization process for the map one time, as we can just hide the map rather than destroy it whenever we need to edit the user experience.
     if(!alreadyInitialized){
         alreadyInitialized = true
+
+        // Creation of map, centered roughly on the center of the state of Maine, more or less.
         map = new L.Map("map_container", {center: [45.2, -69.14], zoom: 7})
 
+        // Making sure that we are giving credit where credit is due for open-source software. Also adds the necessary tile layers for things to work. 
         osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map); 
             
-        //initialize svg to add to map
-        L.svg({clickable:true}).addTo(map) // we have to make the svg layer clickable 
-        //Create selection using D3
-        overlay = d3.select(map.getPanes().overlayPane)
+        // In order to actually have interaction with the map, we need to create an svg layer over the top that's clickable that we add to the map
+        L.svg({clickable:true}).addTo(map)
     
-        
+        // Now that we've added this to the map, we can get this overlayPane that is associated with interactivity, and add handle it as an SVG on D3's side of things
         svgMap = d3.select(map.getPanes().overlayPane).append("svg"),
+
+        // I can't entirely remember the reason for the addition of the class, but the first two parts are necessary so we can add elements to the group (gMap) such that
+        // all elements are correctly positioned on the greater map itself.
         gMap = svgMap.append("g").attr("class", "leaflet-zoom-hide");
     
+        // Leaflet chooses to use its own projection function, so for consistency sake, we use their projection function instead of those present in D3.
         projectPoint = function(x, y) {
             const point = map.latLngToLayerPoint(new L.LatLng(y, x))
             this.stream.point(point.x, point.y)
         }
     
     
+        // Because we are using the projection function that is established within Leaflet instead of D3, we need to make sure that D3 is familiar with this so that when
+        // a set of points are passed in, it understands fully how to handle it, especially when the user zooms in/out and moves the map around.
         mapTransform = d3.geoTransform({point: projectPoint}),
         mapPath = d3.geoPath().projection(mapTransform);
+        
+        // We have several bounding boxes that pertain specifically to instances where a user zooms in and out, and it's important that the map is correctly situated
+        // in such an area that those translations are maintained. To handle this, every time the user finishes zooming in/out, we call the reset function to make sure
+        // all projections are correctly located on the screen.
         map.on("zoomend", reset);
     
     
+        // Small little thing here - we wanted county lines for the state of map, so we just did a very basic set of D3 projections using this information.
+        // This is a pretty standard thing in D3, so if you are ever curious and want to look up documentation on it, most mapping things from D3 will include information 
+        // on paths.
         feature = gMap.selectAll("path")
             .data(counties.features)
             .enter().append("path");
+        
+        // Finally, to make sure that everything will run correctly, we need to run the reset function that sets the initial locations of both the bounding boxes and the map
+        // projection translations.
         reset();
 
     }
+
+    // Regardless of how many times initialize is called, we want to have the state of the website always reset to having no menus, no blockedLegends (talk about later) and
+    // a fresh slate from which the user can interact with the site. Every time the user changes their user experience, this function triggers, so we want this to happen an
+    // arbitrary number of times.
     delete_old_menus(0)
     blockedLegends = {}
     if(document.getElementById("legend_selection").value==="visualizeClick"){
@@ -930,15 +1053,11 @@ function initialize() {
     }
 }
 
-function projectionReset(lon=-69.14,lat=45.2){
-    projection = d3.geoTransverseMercator()
-        .translate(center)
-        .rotate([-lon, -lat])
-        .scale(scale)
-    path = d3.geoPath().projection(projection)
-}
-
 function resize(){
+    // POST: Resizing function that uses the windows height for the sake of the map's height. We want the contents to appropriately fit on different screen sizes, so these
+    // elements are dynamic. Doesn't look great on screens that aren't tall/mobile, but it wasn't made with those in mind so it is what it is.
+    
+    // A bunch of code specifically pertaining to the resizing of elements
     height = window.innerHeight/4*3
     if(height<500)
         height = 500
@@ -948,16 +1067,24 @@ function resize(){
     mapCon = document.getElementById("map_container")
     legendCon = document.getElementById("legend_container")
     legendViz = document.getElementById("legend_visualization")
+    
+    // For whatever reason, the system breaks when you try to combine a string and an integer for the stupid height/width declarations. Not javascript itself, mind you. It
+    // processes these scripts just fine. It's the HTML/CSS side of things that doesn't properly understand how to handle these elements.
     mapCon.style.height = String(height)+"px"
     mapCon.style.width = String(height)+"px"
     menuCon.style.height = String(height)+"px"
     legendCon.style.height = String(height)+"px"
     legendViz.style.height = String(height-110)+"px"
+    
+    // Everytime we resize the screen, we want to make sure that we are creating content that is appropriately displayed. Since these two elements draw from the height and
+    // width (the map and the legend) for their displays, it's important that we recreate them to create a fluid user experience.
     create_map()
     create_legend()
 }
 
 function typeToIndex(type){
+    // PRE: Receives a string containing the name of an institution type
+    // POST: Returns the index of the institution type relative to the index's name (one indexed instead of zero, because idk I choose it that way? Maybe not the best, but still)
     return pathwayValueNames.indexOf(type) + 1
 }
 
