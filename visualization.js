@@ -216,6 +216,11 @@ function create_menu(indexOfElement, startingCutoff,type="") {
         valueRank = pathwayValues[1][pathwayNameIndex]
         newCutoffIndex = pathwayValues[1].indexOf(valueRank, 0)
         nextElement = indexOfElement + 1
+        
+        // So for whatever reason, this little line of code fixes my woes. Apparently, for higher order institutions, this matters???? But for lower order institutions it doesn't
+        // Basically, everything works as intended up until you get to the point where there's multiple institutions at higher order and then it breaks the visualize all button logic
+        // on line 250 as of when this comment was written. It doesn't entirely make sense, since the pathwayValues are always being updated by the array_setup() function, but I digress.
+        valueRank = newCutoffIndex + 1
 
         // Now we create the school list with all the associated schools for the specific type that was provided.
         create_school_list(schoolTypeSelect.value, indexOfElement)
@@ -594,53 +599,78 @@ function add_filters(type, indexOfElement){
             programLabel.innerHTML = "Programs"
         }
         
-        // 
+        // Setting the class/id/htmlFor attributes of the label and radioButtonContainer
         programLabel.htmlFor = "programs";
         programLabel.setAttribute("class", "dropdown_label");
         radioButtonContainer = document.createElement("fieldset")
         radioButtonContainer.setAttribute("id","field_container_"+indexOfElement)
     
+        // Setting the ability for the user to select either either/both for programs that an institution has
         for (const option of ["Or","And"]){
+            
+            // Radio buttons and labels getting their values set, alongside "indexOfElement" for the name
+            // to prevent running into issues with multiple radio button selectors coinciding and reading the same values
             radioButton = document.createElement("div")
             radioInput = document.createElement("input")
             radioLabel = document.createElement("label")
             radioInput.type = "radio"
-            radioInput.name = "selector_" + indexOfElement
             radioInput.value = option
+
+            // this line ensures that each individual radio button is unique and prevents them from stealing selections
+            // from other radio button containers
+            radioInput.name = "selector_" + indexOfElement
+            
+            // Default will be "Or" (either program) for the user to select (needs to be set for the school list creation)
             if(option === "Or"){
                 radioInput.checked = true;
             }
+
+            // Finally adding the label and appending the individual options for the radio buttons for filtering
             radioLabel.for = option
             radioLabel.innerHTML = option
             radioButton.appendChild(radioInput)
             radioButton.appendChild(radioLabel)
             radioButtonContainer.appendChild(radioButton)
         }
-        radioButtonContainer.classList.add("radioButtonsContainer")
 
+
+        
+        // Need a second container for the distance/alphabetical sorting
         radioButtonContainer2 = document.createElement("fieldset")
     
+        // Options for user: A-Z: Alphabetical|Dist.: Ascending Distance from last selected school in previous school list menu
         for (const option of ["A-Z","Dist."]){
+            
+            // Same deal as previous for loop, setting default information that is necessary for HTML elements
             radioButton = document.createElement("div")
             radioInput = document.createElement("input")
             radioLabel = document.createElement("label")
             radioInput.type = "radio"
-            radioInput.name = "selector2_" + indexOfElement
             radioInput.value = option
+            // Likewise to previous loop, this line ensures that each individual radio button is unique and prevents them
+            // from stealing selections from other radio button containers
+            radioInput.name = "selector2_" + indexOfElement
+
+            // For a number of reasons, we are setting alphabetical as the default for sorting of schools reported, not always going to have
+            // a school from the previous list selected - also makes intuitive sense.
             if(option === "A-Z"){
                 radioInput.checked = true;
             }
+
+            // Finally adding the label and appending the individual options for the radio buttons for filtering
             radioLabel.for = option
             radioLabel.innerHTML = option
             radioButton.appendChild(radioInput)
             radioButton.appendChild(radioLabel)
             radioButtonContainer2.appendChild(radioButton)
         }
-        radioButtonContainer2.classList.add("radioButtonsContainer")
-
-
-        // filtersSelection.appendChild(programLabel)
         
+        // Adding the radioButtonsContainer class to the radio button container, used for the second container as well
+        radioButtonContainer.classList.add("radioButtonsContainer")
+        radioButtonContainer2.classList.add("radioButtonsContainer")
+        
+        // Now that everything has been constructed and established, we need to make the container for all the options
+        // for each of the options (i.e., programLabel at the top, filter1/radioButtonContainer/filter2 in the middle-ish, and radioButtonContainer2 on bottom)
         optionsBox = document.createElement("div")
         optionsBox.classList.add("filterOptionsBox")
         optionsBox.appendChild(programLabel)
@@ -648,9 +678,13 @@ function add_filters(type, indexOfElement){
         optionsBox.appendChild(radioButtonContainer)
         optionsBox.appendChild(filter2)
         optionsBox.appendChild(radioButtonContainer2)
+
+        // As we cleared this element earlier, we can now re-add its contents without duplicating them.
         filtersSelection.appendChild(optionsBox)
         filtersSelection.classList.add("filtersContainer")
 
+        // Basically, when the user changes the filters, we want to clear the selection such that they don't have anything selected that
+        // shouldn't be present in that full list.
         filtersSelection.onchange = function () {
             document.getElementById("all_button_"+indexOfElement).style.backgroundColor = "gainsboro"
             d3.select("#map_container").selectAll("circle.clickedVisualization_"+indexOfElement).remove()
@@ -658,9 +692,8 @@ function add_filters(type, indexOfElement){
             clicked[indexOfElement] = 0
         }
 
+        // Add the filtersSelection element to the menu for that specific institution 
         currentElement.append(filtersSelection)
-    
-
     }
 }
 
