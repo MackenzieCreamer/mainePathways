@@ -291,9 +291,9 @@ input[type="checkbox"]:checked+label {
 
 #school_menu_popup{
     width: 40%;
-    height: 30%;
+    height: 60%;
     position: absolute;
-    top: calc(50% - 15%);
+    top: calc(50% - 30%);
     left: calc(50% - 20%);
     background-color: white;
     display: flex;
